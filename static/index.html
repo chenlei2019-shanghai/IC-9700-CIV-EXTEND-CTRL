@@ -1,0 +1,629 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>IC-9700 CI-V 控制器</title>
+<link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+<div class="app-layout">
+  <!-- Header -->
+  <header class="app-header">
+    <h1>📻 IC-9700 CI-V 控制器</h1>
+    <div class="header-controls">
+      <span id="conn-pill" class="status-pill err">未连接</span>
+      <select id="conn-type">
+        <option value="serial">串口</option>
+        <option value="lan">LAN</option>
+      </select>
+      <!-- Serial controls -->
+      <span id="serial-ctrls">
+        <select id="port-select"></select>
+        <button id="btn-refresh-ports">🔄</button>
+        <select id="baud-select">
+          <option value="4800">4800</option>
+          <option value="9600">9600</option>
+          <option value="19200">19200</option>
+          <option value="38400">38400</option>
+          <option value="57600">57600</option>
+          <option value="115200" selected>115200</option>
+        </select>
+      </span>
+      <!-- LAN controls -->
+      <span id="lan-ctrls" style="display:none;">
+        <input id="lan-host" type="text" placeholder="IP 地址" value="192.168.1.100" style="width:110px;">
+        <input id="lan-user" type="text" placeholder="用户名" value="" style="width:70px;">
+        <input id="lan-pass" type="password" placeholder="密码" value="" style="width:70px;">
+      </span>
+      <button id="btn-connect" class="btn-primary">连接</button>
+      <button id="btn-disconnect" class="btn-danger">断开</button>
+    </div>
+  </header>
+
+  <div class="app-body">
+    <!-- Sidebar Tree -->
+    <nav class="sidebar" id="sidebar">
+      <div class="tree-node">
+        <div class="tree-branch active" data-target="home"><span class="icon">🏠</span><span class="label">主显示</span></div>
+      </div>
+
+      <div class="tree-node">
+        <div class="tree-branch" data-expand><span class="arrow">▶</span><span class="icon">📻</span><span class="label">主控制</span></div>
+        <div class="tree-children">
+          <div class="tree-leaf" data-target="freq-mode">频率/模式</div>
+          <div class="tree-leaf" data-target="vfo">VFO 操作</div>
+          <div class="tree-leaf" data-target="memory">记忆通道</div>
+          <div class="tree-leaf" data-target="scan">扫描控制</div>
+        </div>
+      </div>
+
+      <div class="tree-node">
+        <div class="tree-branch" data-expand><span class="arrow">▶</span><span class="icon">📡</span><span class="label">发射控制</span></div>
+        <div class="tree-children">
+          <div class="tree-leaf" data-target="split-duplex">Split / 双工</div>
+          <div class="tree-leaf" data-target="rit-xfc">RIT / XFC</div>
+          <div class="tree-leaf" data-target="tx-power">RF 功率</div>
+          <div class="tree-leaf" data-target="voice-tx">语音记忆</div>
+        </div>
+      </div>
+
+      <div class="tree-node">
+        <div class="tree-branch" data-expand><span class="arrow">▶</span><span class="icon">🔊</span><span class="label">接收控制</span></div>
+        <div class="tree-children">
+          <div class="tree-leaf" data-target="rx-levels">AF / RF / SQL</div>
+          <div class="tree-leaf" data-target="pbt">PBT 滤波器</div>
+          <div class="tree-leaf" data-target="nb">噪声消除 NB</div>
+          <div class="tree-leaf" data-target="nr">降噪 NR</div>
+          <div class="tree-leaf" data-target="notch">陷波器</div>
+          <div class="tree-leaf" data-target="agc-preamp">AGC / 前置放大</div>
+        </div>
+      </div>
+
+      <div class="tree-node">
+        <div class="tree-branch" data-expand><span class="arrow">▶</span><span class="icon">🎙️</span><span class="label">发射音频</span></div>
+        <div class="tree-children">
+          <div class="tree-leaf" data-target="mic-audio">MIC / COMP</div>
+          <div class="tree-leaf" data-target="moni-vox">监听 / VOX</div>
+        </div>
+      </div>
+
+      <div class="tree-node">
+        <div class="tree-branch" data-expand><span class="arrow">▶</span><span class="icon">⚙️</span><span class="label">Function 设置</span></div>
+        <div class="tree-children">
+          <div class="tree-leaf" data-target="func-beep">Beep / 音频</div>
+          <div class="tree-leaf" data-target="func-tx">TX / Delay / 定时器</div>
+          <div class="tree-leaf" data-target="func-split">Split / Repeater</div>
+          <div class="tree-leaf" data-target="func-rtty">RTTY 设置</div>
+          <div class="tree-leaf" data-target="func-speech">Speech 语音</div>
+          <div class="tree-leaf" data-target="func-lock">锁定 / 键盘</div>
+          <div class="tree-leaf" data-target="func-other">其他功能</div>
+        </div>
+      </div>
+
+      <div class="tree-node">
+        <div class="tree-branch" data-expand><span class="arrow">▶</span><span class="icon">📟</span><span class="label">DV/DD 设置</span></div>
+        <div class="tree-children">
+          <div class="tree-leaf" data-target="dv-basic">基础 DV 设置</div>
+          <div class="tree-leaf" data-target="dv-data">DV Data / Fast Data</div>
+          <div class="tree-leaf" data-target="dv-monitor">Digital Monitor / RPT</div>
+          <div class="tree-leaf" data-target="dv-dd">DD / BK / EMR</div>
+        </div>
+      </div>
+
+      <div class="tree-node">
+        <div class="tree-branch" data-expand><span class="arrow">▶</span><span class="icon">🔌</span><span class="label">Connectors 设置</span></div>
+        <div class="tree-children">
+          <div class="tree-leaf" data-target="conn-preamp">External P.AMP / 扬声器</div>
+          <div class="tree-leaf" data-target="conn-acc">ACC AF/IF / SEND</div>
+          <div class="tree-leaf" data-target="conn-usb">USB AF/IF / SEND</div>
+          <div class="tree-leaf" data-target="conn-lan">LAN / MOD Input</div>
+          <div class="tree-leaf" data-target="conn-civ">CI-V / 键盘</div>
+        </div>
+      </div>
+
+      <div class="tree-node">
+        <div class="tree-branch" data-expand><span class="arrow">▶</span><span class="icon">🌐</span><span class="label">Network 设置</span></div>
+        <div class="tree-children">
+          <div class="tree-leaf" data-target="net-basic">DHCP / IP / DNS</div>
+          <div class="tree-leaf" data-target="net-port">端口 / 接入线路</div>
+        </div>
+      </div>
+
+      <div class="tree-node">
+        <div class="tree-branch" data-expand><span class="arrow">▶</span><span class="icon">📺</span><span class="label">Display 设置</span></div>
+        <div class="tree-children">
+          <div class="tree-leaf" data-target="disp-lcd">LCD / 背光 / 字体</div>
+          <div class="tree-leaf" data-target="disp-callsign">呼号 / 弹出 / 屏保</div>
+          <div class="tree-leaf" data-target="disp-unit">单位 / 语言</div>
+        </div>
+      </div>
+
+      <div class="tree-node">
+        <div class="tree-branch" data-expand><span class="arrow">▶</span><span class="icon">⏰</span><span class="label">Time Set</span></div>
+        <div class="tree-children">
+          <div class="tree-leaf" data-target="time-basic">日期 / 时间 / NTP</div>
+          <div class="tree-leaf" data-target="time-gps">GPS / UTC 偏移</div>
+        </div>
+      </div>
+
+      <div class="tree-node">
+        <div class="tree-branch" data-expand><span class="arrow">▶</span><span class="icon">📊</span><span class="label">SCOPE 设置</span></div>
+        <div class="tree-children">
+          <div class="tree-leaf" data-target="scope-display">显示 / 波形 / 瀑布图</div>
+          <div class="tree-leaf" data-target="scope-edge">固定边缘 / VBW</div>
+        </div>
+      </div>
+
+      <div class="tree-node">
+        <div class="tree-branch" data-expand><span class="arrow">▶</span><span class="icon">🔉</span><span class="label">AUDIO SCOPE / 语音</span></div>
+        <div class="tree-children">
+          <div class="tree-leaf" data-target="audio-scope">Audio Scope</div>
+          <div class="tree-leaf" data-target="voice-tx-set">Voice TX Set</div>
+        </div>
+      </div>
+
+      <div class="tree-node">
+        <div class="tree-branch" data-expand><span class="arrow">▶</span><span class="icon">⌨️</span><span class="label">KEYER / CW / RTTY</span></div>
+        <div class="tree-children">
+          <div class="tree-leaf" data-target="keyer">Keyer 设置</div>
+          <div class="tree-leaf" data-target="cw-key">CW-Key 设置</div>
+          <div class="tree-leaf" data-target="rtty-decode">RTTY Decode</div>
+        </div>
+      </div>
+
+      <div class="tree-node">
+        <div class="tree-branch" data-expand><span class="arrow">▶</span><span class="icon">💾</span><span class="label">Recorder / Scan / GPS</span></div>
+        <div class="tree-children">
+          <div class="tree-leaf" data-target="recorder">QSO Recorder</div>
+          <div class="tree-leaf" data-target="scan-set">Scan Set</div>
+          <div class="tree-leaf" data-target="gps">GPS 设置</div>
+          <div class="tree-leaf" data-target="dtmf">DTMF / NB / PWR Limit</div>
+        </div>
+      </div>
+
+      <div class="tree-node">
+        <div class="tree-branch" data-target="raw"><span class="icon">🔧</span><span class="label">原始命令</span></div>
+      </div>
+      <div class="tree-node">
+        <div class="tree-branch" data-target="log"><span class="icon">📝</span><span class="label">通信日志</span></div>
+      </div>
+    </nav>
+
+    <!-- Main Content -->
+    <main class="main-content" id="main-content">
+
+      <!-- HOME -->
+      <section class="panel-section active" id="panel-home">
+        <div class="card">
+          <h3>主显示</h3>
+          <div class="display-bar">
+            <div class="display-tile"><div class="label">频率</div><div id="disp-freq" class="value">---.------- MHz</div></div>
+            <div class="display-tile"><div class="label">模式</div><div id="disp-mode" class="value">---</div></div>
+            <div class="display-tile"><div class="label">滤波器</div><div id="disp-filter" class="value">---</div></div>
+            <div class="display-tile"><div class="label">状态</div><div id="disp-tx-status" class="value rx">RX</div></div>
+          </div>
+          <div class="row">
+            <input type="number" id="input-freq" placeholder="输入频率 (Hz)" style="flex:1;min-width:180px">
+            <button id="btn-set-freq">设置频率</button>
+            <button id="btn-poll-freq">读取频率</button>
+            <button id="btn-poll-mode">读取模式</button>
+          </div>
+        </div>
+        <div class="card">
+          <h3>仪表</h3>
+          <div class="meters-grid">
+            <div class="meter-box"><div class="label">S-Meter</div><div id="meter-smeter" class="bar"><div class="fill"></div></div><div class="value" id="val-smeter">S0</div></div>
+            <div class="meter-box"><div class="label">PO (功率)</div><div id="meter-po" class="bar"><div class="fill"></div></div><div class="value" id="val-po">0%</div></div>
+            <div class="meter-box"><div class="label">SWR</div><div id="meter-swr" class="bar"><div class="fill"></div></div><div class="value" id="val-swr">1.0</div></div>
+            <div class="meter-box"><div class="label">ALC</div><div id="meter-alc" class="bar"><div class="fill"></div></div><div class="value" id="val-alc">0</div></div>
+            <div class="meter-box"><div class="label">COMP</div><div id="meter-comp" class="bar"><div class="fill"></div></div><div class="value" id="val-comp">0 dB</div></div>
+            <div class="meter-box"><div class="label">Vd (电压)</div><div id="meter-vd" class="bar"><div class="fill"></div></div><div class="value" id="val-vd">0 V</div></div>
+            <div class="meter-box"><div class="label">Id (电流)</div><div id="meter-id" class="bar"><div class="fill"></div></div><div class="value" id="val-id">0 A</div></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- FREQ/MODE -->
+      <section class="panel-section" id="panel-freq-mode">
+        <div class="card">
+          <h3>模式选择</h3>
+          <div class="btn-group">
+            <button data-cmd="mode" data-val="0x00">LSB</button>
+            <button data-cmd="mode" data-val="0x01">USB</button>
+            <button data-cmd="mode" data-val="0x02">AM</button>
+            <button data-cmd="mode" data-val="0x03">CW</button>
+            <button data-cmd="mode" data-val="0x04">RTTY</button>
+            <button data-cmd="mode" data-val="0x05">FM</button>
+            <button data-cmd="mode" data-val="0x07">CW-R</button>
+            <button data-cmd="mode" data-val="0x08">RTTY-R</button>
+            <button data-cmd="mode" data-val="0x17">DV</button>
+            <button data-cmd="mode" data-val="0x22">DD</button>
+          </div>
+          <h4>滤波器</h4>
+          <div class="btn-group">
+            <button data-cmd="filter" data-val="1">FIL1</button>
+            <button data-cmd="filter" data-val="2">FIL2</button>
+            <button data-cmd="filter" data-val="3">FIL3</button>
+          </div>
+        </div>
+        <div class="card">
+          <h3>调谐步进</h3>
+          <div class="row">
+            <select id="sel-tuning-step">
+              <option value="0">OFF (10Hz/1Hz)</option>
+              <option value="1">100 Hz</option>
+              <option value="2">500 Hz</option>
+              <option value="3">1 kHz</option>
+              <option value="4">5 kHz</option>
+              <option value="5">6.25 kHz</option>
+              <option value="6">10 kHz</option>
+              <option value="7">12.5 kHz</option>
+              <option value="8">20 kHz</option>
+              <option value="9">25 kHz</option>
+              <option value="10">50 kHz</option>
+              <option value="11">100 kHz</option>
+            </select>
+            <button id="btn-set-step">设置步进</button>
+          </div>
+        </div>
+      </section>
+
+      <!-- VFO -->
+      <section class="panel-section" id="panel-vfo">
+        <div class="card">
+          <h3>VFO 操作</h3>
+          <div class="btn-group">
+            <button data-cmd="vfo" data-val="A">VFO A</button>
+            <button data-cmd="vfo" data-val="B">VFO B</button>
+            <button data-cmd="vfo" data-val="equal">A = B</button>
+            <button data-cmd="vfo" data-val="exchange">交换主副频段</button>
+            <button data-cmd="vfo" data-val="main">选择主频段</button>
+            <button data-cmd="vfo" data-val="sub">选择副频段</button>
+          </div>
+        </div>
+        <div class="card">
+          <h3>频段选择读取</h3>
+          <div class="btn-group">
+            <button id="btn-read-main">读取主频段</button>
+            <button id="btn-read-sub">读取副频段</button>
+          </div>
+        </div>
+      </section>
+
+      <!-- MEMORY -->
+      <section class="panel-section" id="panel-memory">
+        <div class="card">
+          <h3>记忆通道 (1-99)</h3>
+          <div class="row">
+            <label>通道: <input type="number" id="input-channel" min="1" max="99" value="1"></label>
+            <button id="btn-mem-select">选择通道</button>
+            <button id="btn-mem-write">写入</button>
+            <button id="btn-mem-copy">复制到VFO</button>
+            <button id="btn-mem-clear">清除</button>
+          </div>
+        </div>
+      </section>
+
+      <!-- SCAN -->
+      <section class="panel-section" id="panel-scan">
+        <div class="card">
+          <h3>扫描控制</h3>
+          <div class="btn-group">
+            <button data-cmd="scan" data-val="cancel">停止扫描</button>
+            <button data-cmd="scan" data-val="pm">P/M 扫描</button>
+            <button data-cmd="scan" data-val="p">P 扫描</button>
+            <button data-cmd="scan" data-val="df">ΔF 扫描</button>
+            <button data-cmd="scan" data-val="fine_p">精细 P 扫描</button>
+            <button data-cmd="scan" data-val="fine_df">精细 ΔF 扫描</button>
+            <button data-cmd="scan" data-val="mem">记忆扫描</button>
+            <button data-cmd="scan" data-val="sel_mem">选择记忆扫描</button>
+            <button data-cmd="scan" data-val="mode_sel">模式选择扫描</button>
+          </div>
+          <h4>扫描跨度 (ΔF)</h4>
+          <div class="row">
+            <select id="sel-scan-span">
+              <option value="1">±5 kHz</option>
+              <option value="2">±10 kHz</option>
+              <option value="3">±20 kHz</option>
+              <option value="4">±50 kHz</option>
+              <option value="5">±100 kHz</option>
+              <option value="6">±500 kHz</option>
+              <option value="7">±1 MHz</option>
+            </select>
+            <button id="btn-set-scan-span">设置跨度</button>
+            <button id="btn-scan-resume-on">恢复 ON</button>
+            <button id="btn-scan-resume-off">恢复 OFF</button>
+          </div>
+        </div>
+      </section>
+
+      <!-- SPLIT/DUPLEX -->
+      <section class="panel-section" id="panel-split-duplex">
+        <div class="card">
+          <h3>Split / 双工</h3>
+          <div class="btn-group">
+            <button id="btn-split-off">Split OFF</button>
+            <button id="btn-split-on">Split ON</button>
+          </div>
+          <h4>双工模式</h4>
+          <div class="btn-group">
+            <button data-cmd="duplex" data-val="simplex">单工</button>
+            <button data-cmd="duplex" data-val="dup-">DUP -</button>
+            <button data-cmd="duplex" data-val="dup+">DUP +</button>
+            <button data-cmd="duplex" data-val="rps">RPS</button>
+          </div>
+        </div>
+      </section>
+
+      <!-- RIT/XFC -->
+      <section class="panel-section" id="panel-rit-xfc">
+        <div class="card">
+          <h3>RIT</h3>
+          <div class="row">
+            <button id="btn-rit-on" class="btn-toggle off">RIT OFF</button>
+            <label>频率 (Hz): <input type="number" id="input-rit" value="0" step="10"></label>
+            <label>方向:
+              <select id="sel-rit-dir">
+                <option value="+">+</option>
+                <option value="-">-</option>
+              </select>
+            </label>
+            <button id="btn-rit-set">设置RIT</button>
+          </div>
+        </div>
+        <div class="card">
+          <h3>XFC (发射频率监视)</h3>
+          <div class="row">
+            <button id="btn-xfc-on" class="btn-toggle off">XFC OFF</button>
+          </div>
+        </div>
+      </section>
+
+      <!-- TX POWER -->
+      <section class="panel-section" id="panel-tx-power">
+        <div class="card">
+          <h3>RF 功率输出</h3>
+          <div class="sliders-grid" id="txpower-sliders"></div>
+        </div>
+        <div class="card">
+          <h3>TX 功率设置</h3>
+          <div class="row">
+            <button id="btn-tx-pwr-set-on" class="btn-toggle off">TX输出 OFF</button>
+            <button id="btn-read-tx-pwr">读取状态</button>
+          </div>
+        </div>
+      </section>
+
+      <!-- VOICE TX -->
+      <section class="panel-section" id="panel-voice-tx">
+        <div class="card">
+          <h3>语音记忆</h3>
+          <div class="row">
+            <label>通道 (1-8): <input type="number" id="input-voice" min="1" max="8" value="1"></label>
+            <button id="btn-voice-play">播放</button>
+            <button id="btn-voice-stop">停止</button>
+          </div>
+        </div>
+        <div class="card">
+          <h3>CW 消息发送</h3>
+          <div class="row">
+            <input type="text" id="input-cw-msg" placeholder="CW消息 (最多30字符)" maxlength="30" style="flex:1">
+            <button id="btn-cw-send">发送CW</button>
+          </div>
+        </div>
+      </section>
+
+      <!-- RX LEVELS -->
+      <section class="panel-section" id="panel-rx-levels">
+        <div class="card"><h3>AF / RF / SQL 电平</h3><div class="sliders-grid" id="rxlevels-sliders"></div></div>
+      </section>
+
+      <!-- PBT -->
+      <section class="panel-section" id="panel-pbt">
+        <div class="card"><h3>TWIN PBT 位置</h3><div class="sliders-grid" id="pbt-sliders"></div></div>
+        <div class="card"><h3>功能开关</h3><div class="switches-grid" id="pbt-switches"></div></div>
+      </section>
+
+      <!-- NB -->
+      <section class="panel-section" id="panel-nb">
+        <div class="card"><h3>NB 电平</h3><div class="sliders-grid" id="nb-sliders"></div></div>
+        <div class="card"><h3>NB 开关</h3><div class="switches-grid" id="nb-switches"></div></div>
+      </section>
+
+      <!-- NR -->
+      <section class="panel-section" id="panel-nr">
+        <div class="card"><h3>NR 电平</h3><div class="sliders-grid" id="nr-sliders"></div></div>
+        <div class="card"><h3>NR / Auto Notch</h3><div class="switches-grid" id="nr-switches"></div></div>
+      </section>
+
+      <!-- NOTCH -->
+      <section class="panel-section" id="panel-notch">
+        <div class="card"><h3>陷波器电平</h3><div class="sliders-grid" id="notch-sliders"></div></div>
+        <div class="card"><h3>陷波器开关</h3><div class="switches-grid" id="notch-switches"></div></div>
+      </section>
+
+      <!-- AGC/PREAMP -->
+      <section class="panel-section" id="panel-agc-preamp">
+        <div class="card"><h3>前置放大 / 衰减器</h3><div class="switches-grid" id="preamp-switches"></div></div>
+        <div class="card"><h3>AGC 时间常数</h3><div class="switches-grid" id="agc-switches"></div></div>
+      </section>
+
+      <!-- MIC AUDIO -->
+      <section class="panel-section" id="panel-mic-audio">
+        <div class="card"><h3>MIC / COMP / 键速</h3><div class="sliders-grid" id="mic-sliders"></div></div>
+        <div class="card"><h3>发射音频开关</h3><div class="switches-grid" id="mic-switches"></div></div>
+      </section>
+
+      <!-- MONI/VOX -->
+      <section class="panel-section" id="panel-moni-vox">
+        <div class="card"><h3>监听 / VOX 电平</h3><div class="sliders-grid" id="moni-sliders"></div></div>
+        <div class="card"><h3>监听 / VOX 开关</h3><div class="switches-grid" id="moni-switches"></div></div>
+      </section>
+
+      <!-- Function: Beep -->
+      <section class="panel-section" id="panel-func-beep">
+        <div class="card"><h3>Beep 设置</h3><div id="func-beep-container"></div></div>
+      </section>
+      <!-- Function: TX -->
+      <section class="panel-section" id="panel-func-tx">
+        <div class="card"><h3>TX Delay / 超时定时器</h3><div id="func-tx-container"></div></div>
+      </section>
+      <!-- Function: Split -->
+      <section class="panel-section" id="panel-func-split">
+        <div class="card"><h3>Split / Repeater</h3><div id="func-split-container"></div></div>
+      </section>
+      <!-- Function: RTTY -->
+      <section class="panel-section" id="panel-func-rtty">
+        <div class="card"><h3>RTTY 设置</h3><div id="func-rtty-container"></div></div>
+      </section>
+      <!-- Function: Speech -->
+      <section class="panel-section" id="panel-func-speech">
+        <div class="card"><h3>Speech 设置</h3><div id="func-speech-container"></div></div>
+      </section>
+      <!-- Function: Lock -->
+      <section class="panel-section" id="panel-func-lock">
+        <div class="card"><h3>锁定 / 键盘</h3><div id="func-lock-container"></div></div>
+      </section>
+      <!-- Function: Other -->
+      <section class="panel-section" id="panel-func-other">
+        <div class="card"><h3>其他功能</h3><div id="func-other-container"></div></div>
+      </section>
+
+      <!-- DV Basic -->
+      <section class="panel-section" id="panel-dv-basic">
+        <div class="card"><h3>DV 基础设置</h3><div id="dv-basic-container"></div></div>
+      </section>
+      <!-- DV Data -->
+      <section class="panel-section" id="panel-dv-data">
+        <div class="card"><h3>DV Data / Fast Data</h3><div id="dv-data-container"></div></div>
+      </section>
+      <!-- DV Monitor -->
+      <section class="panel-section" id="panel-dv-monitor">
+        <div class="card"><h3>Digital Monitor / RPT</h3><div id="dv-monitor-container"></div></div>
+      </section>
+      <!-- DV DD -->
+      <section class="panel-section" id="panel-dv-dd">
+        <div class="card"><h3>DD / BK / EMR</h3><div id="dv-dd-container"></div></div>
+      </section>
+
+      <!-- Connectors -->
+      <section class="panel-section" id="panel-conn-preamp">
+        <div class="card"><h3>External P.AMP / 扬声器 / 耳机</h3><div id="conn-preamp-container"></div></div>
+      </section>
+      <section class="panel-section" id="panel-conn-acc">
+        <div class="card"><h3>ACC AF/IF / SEND</h3><div id="conn-acc-container"></div></div>
+      </section>
+      <section class="panel-section" id="panel-conn-usb">
+        <div class="card"><h3>USB AF/IF / SEND / Keying</h3><div id="conn-usb-container"></div></div>
+      </section>
+      <section class="panel-section" id="panel-conn-lan">
+        <div class="card"><h3>LAN / MOD Input</h3><div id="conn-lan-container"></div></div>
+      </section>
+      <section class="panel-section" id="panel-conn-civ">
+        <div class="card"><h3>CI-V / 键盘</h3><div id="conn-civ-container"></div></div>
+      </section>
+
+      <!-- Network -->
+      <section class="panel-section" id="panel-net-basic">
+        <div class="card"><h3>DHCP / IP / DNS</h3><div id="net-basic-container"></div></div>
+      </section>
+      <section class="panel-section" id="panel-net-port">
+        <div class="card"><h3>端口 / 接入线路 / 其他</h3><div id="net-port-container"></div></div>
+      </section>
+
+      <!-- Display -->
+      <section class="panel-section" id="panel-disp-lcd">
+        <div class="card"><h3>LCD / 背光 / 字体</h3><div id="disp-lcd-container"></div></div>
+      </section>
+      <section class="panel-section" id="panel-disp-callsign">
+        <div class="card"><h3>呼号 / 弹出 / 屏保</h3><div id="disp-callsign-container"></div></div>
+      </section>
+      <section class="panel-section" id="panel-disp-unit">
+        <div class="card"><h3>单位 / 语言</h3><div id="disp-unit-container"></div></div>
+      </section>
+
+      <!-- Time -->
+      <section class="panel-section" id="panel-time-basic">
+        <div class="card"><h3>日期 / 时间 / NTP</h3><div id="time-basic-container"></div></div>
+      </section>
+      <section class="panel-section" id="panel-time-gps">
+        <div class="card"><h3>GPS / UTC 偏移</h3><div id="time-gps-container"></div></div>
+      </section>
+
+      <!-- Scope -->
+      <section class="panel-section" id="panel-scope-display">
+        <div class="card"><h3>显示 / 波形 / 瀑布图</h3><div id="scope-display-container"></div></div>
+      </section>
+      <section class="panel-section" id="panel-scope-edge">
+        <div class="card"><h3>固定边缘 / VBW / 其他</h3><div id="scope-edge-container"></div></div>
+      </section>
+
+      <!-- Audio Scope / Voice -->
+      <section class="panel-section" id="panel-audio-scope">
+        <div class="card"><h3>Audio Scope 设置</h3><div id="audio-scope-container"></div></div>
+      </section>
+      <section class="panel-section" id="panel-voice-tx-set">
+        <div class="card"><h3>Voice TX 设置</h3><div id="voice-tx-set-container"></div></div>
+      </section>
+
+      <!-- Keyer / CW / RTTY -->
+      <section class="panel-section" id="panel-keyer">
+        <div class="card"><h3>Keyer 设置</h3><div id="keyer-container"></div></div>
+      </section>
+      <section class="panel-section" id="panel-cw-key">
+        <div class="card"><h3>CW-Key 设置</h3><div id="cw-key-container"></div></div>
+      </section>
+      <section class="panel-section" id="panel-rtty-decode">
+        <div class="card"><h3>RTTY Decode 设置</h3><div id="rtty-decode-container"></div></div>
+      </section>
+
+      <!-- Recorder / Scan / GPS / DTMF -->
+      <section class="panel-section" id="panel-recorder">
+        <div class="card"><h3>QSO Recorder 设置</h3><div id="recorder-container"></div></div>
+      </section>
+      <section class="panel-section" id="panel-scan-set">
+        <div class="card"><h3>Scan Set</h3><div id="scan-set-container"></div></div>
+      </section>
+      <section class="panel-section" id="panel-gps">
+        <div class="card"><h3>GPS 设置</h3><div id="gps-container"></div></div>
+      </section>
+      <section class="panel-section" id="panel-dtmf">
+        <div class="card"><h3>DTMF / NB设置 / 功率限制</h3><div id="dtmf-container"></div></div>
+      </section>
+
+      <!-- RAW -->
+      <section class="panel-section" id="panel-raw">
+        <div class="card">
+          <h3>原始 CI-V 命令</h3>
+          <div class="row">
+            <input type="text" id="input-raw" placeholder="FE FE A2 E0 ... FD" style="flex:1">
+            <button id="btn-raw-send">发送</button>
+          </div>
+          <p style="margin-top:8px;color:#64748b;font-size:0.8rem">提示: 输入完整十六进制帧，空格可选。例如: FE FE A2 E0 03 FD</p>
+        </div>
+        <div class="card">
+          <h3>电源控制</h3>
+          <div class="btn-group">
+            <button id="btn-power-on" class="btn-primary">开机 (Power ON)</button>
+            <button id="btn-power-off" class="btn-danger">关机 (Power OFF)</button>
+          </div>
+        </div>
+      </section>
+
+      <!-- LOG -->
+      <section class="panel-section" id="panel-log">
+        <div class="card">
+          <h3>通信日志</h3>
+          <div id="log-box"></div>
+          <button id="btn-clear-log" style="margin-top:8px">清空日志</button>
+        </div>
+      </section>
+
+    </main>
+  </div>
+</div>
+
+<script src="/static/app.js"></script>
+</body>
+</html>
