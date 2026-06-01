@@ -164,7 +164,8 @@ function updateExtControl(item, value) {
   const itemHex = item.toString(16).padStart(4, '0').toLowerCase();
   const el = document.getElementById("ext-" + itemHex);
   if (el) {
-    const v = value.length > 0 ? value[0] : 0;
+    // value from backend: either integer (BCD decoded) or byte list
+    const v = Array.isArray(value) ? (value.length >= 2 ? (value[0] << 8) | value[1] : (value.length > 0 ? value[0] : 0)) : value;
     if (el.tagName === "BUTTON") {
       el.textContent = v ? "ON" : "OFF";
       el.className = "btn-toggle " + (v ? "on" : "off");
@@ -179,7 +180,7 @@ function updateExtControl(item, value) {
   const sliderId = "exts-" + itemHex;
   const s = document.getElementById(sliderId);
   if (s && value.length > 0) {
-    const v = value.length >= 2 ? (value[0] << 8) | value[1] : value[0];
+    const v = Array.isArray(value) ? (value.length >= 2 ? (value[0] << 8) | value[1] : value[0]) : value;
     s.value = v;
     const n = document.getElementById(sliderId + "-num");
     if (n) {

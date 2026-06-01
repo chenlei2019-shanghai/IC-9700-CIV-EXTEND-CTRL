@@ -73,6 +73,18 @@ def bcd2_to_int(b1: int, b2: int) -> int:
     return ((b1 >> 4) & 0x0F) * 1000 + (b1 & 0x0F) * 100 + ((b2 >> 4) & 0x0F) * 10 + (b2 & 0x0F)
 
 
+def int_to_bcd2(val: int) -> bytes:
+    """Encode 0-9999 to 2-byte BCD."""
+    return bytes([
+        ((val // 1000) % 10) << 4 | ((val // 100) % 10),
+        ((val // 10) % 10) << 4 | (val % 10),
+    ])
+
+
+# CI-V items that use BCD encoding for values (range "0000 ~ 0255" in spec)
+BCD_ITEMS = {0x0112, 0x0113, 0x0114, 0x0027, 0x0152}
+
+
 def decode_level(payload: bytes) -> int:
     """Decode 2-byte level value."""
     if len(payload) >= 2:
@@ -179,8 +191,13 @@ def on_serial_data(msg: dict):
         out["event"] = "extended"
         subcmd = payload[0] if len(payload) >= 1 else 0
         if subcmd == 0x05 and len(payload) >= 3:
-            out["item"] = (payload[1] << 8) | payload[2]
-            out["value"] = list(payload[3:])
+            item = (payload[1] << 8) | payload[2]
+            out["item"] = item
+            data = payload[3:]
+            if item in BCD_ITEMS and len(data) >= 2:
+                out["value"] = bcd2_to_int(data[0], data[1])
+            else:
+                out["value"] = list(data)
     elif cmd == 0x1B:
         out["event"] = "tone"
         out["payload"] = payload_hex
@@ -459,7 +476,9 @@ async def websocket_endpoint(websocket: WebSocket):
                     item = int(msg["item"], 0) if isinstance(msg["item"], str) else int(msg["item"])
                     val = msg["value"]
                     if isinstance(val, int):
-                        if val <= 255:
+                        if item in BCD_ITEMS:
+                            data = int_to_bcd2(val)
+                        elif val <= 255:
                             data = bytes([val])
                         else:
                             data = bytes([(val >> 8) & 0xFF, val & 0xFF])
