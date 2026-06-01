@@ -324,6 +324,12 @@ async def websocket_endpoint(websocket: WebSocket):
             try:
                 msg = json.loads(raw)
                 action = msg.get("action")
+                # Log all user actions
+                if action != "poll_panel":  # batch reads are noisy, skip details
+                    logging.info("WS action: %s %s",
+                        action, json.dumps({k: v for k, v in msg.items() if k != "action"}))
+                elif msg.get("reads"):
+                    logging.info("WS action: poll_panel reads=%d", len(msg["reads"]))
 
                 if action == "connect":
                     port = msg.get("port", "COM1")

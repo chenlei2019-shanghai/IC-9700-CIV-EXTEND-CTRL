@@ -8,6 +8,9 @@ import serial.tools.list_ports
 import threading
 import time
 import struct
+import logging
+
+logger = logging.getLogger("civ")
 
 # IC-9700 default CI-V address
 RADIO_ADDR = 0xA2
@@ -202,14 +205,17 @@ class CIVSerial:
                 from_addr = frame[3]
                 if to_addr in (CONTROLLER_ADDR, 0x00) and from_addr in (RADIO_ADDR, 0x00):
                     if frame[4] == OK_CODE:
+                        logger.info("CI-V RX: OK")
                         self._resolve_pending("ok", True)
                         if self.callback:
                             self.callback({"type": "ok"})
                     elif frame[4] == NG_CODE:
+                        logger.info("CI-V RX: NG")
                         self._resolve_pending("ng", True)
                         if self.callback:
                             self.callback({"type": "ng"})
             return
+        logger.info("CI-V RX: cmd=0x%02X payload=%s", parsed["cmd"], parsed["payload"].hex().upper())
         if self.callback:
             self.callback({"type": "data", **parsed})
 
@@ -221,6 +227,7 @@ class CIVSerial:
     def send_raw(self, data: bytes):
         with self.lock:
             if self.ser and self.ser.is_open:
+                logger.info("CI-V TX: %s", data.hex().upper())
                 self.ser.write(data)
                 self.ser.flush()
                 return True
