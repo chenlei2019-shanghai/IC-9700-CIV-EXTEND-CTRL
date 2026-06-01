@@ -178,8 +178,8 @@ function updateExtControl(item, value) {
   // Try slider (1A)
   const sliderId = "exts-" + itemHex;
   const s = document.getElementById(sliderId);
-  if (s) {
-    const v = value.length >= 2 ? (value[0] << 8) | value[1] : (value.length >= 1 ? value[0] : 0);
+  if (s && value.length > 0) {
+    const v = value.length >= 2 ? (value[0] << 8) | value[1] : value[0];
     s.value = v;
     const n = document.getElementById(sliderId + "-num");
     if (n) {
