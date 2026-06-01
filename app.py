@@ -441,10 +441,7 @@ async def websocket_endpoint(websocket: WebSocket):
                     item = int(msg["item"], 0) if isinstance(msg["item"], str) else int(msg["item"])
                     val = msg["value"]
                     if isinstance(val, int):
-                        if val <= 255:
-                            data = bytes([val])
-                        else:
-                            data = bytes([(val >> 8) & 0xFF, val & 0xFF])
+                        data = bytes([(val >> 8) & 0xFF, val & 0xFF])
                     elif isinstance(val, list):
                         data = bytes(val)
                     else:
