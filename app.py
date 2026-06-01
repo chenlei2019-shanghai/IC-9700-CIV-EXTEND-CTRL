@@ -14,15 +14,7 @@ import webbrowser
 from contextlib import asynccontextmanager
 from typing import Optional
 
-from fastapi import FastAPI, WebSocket, WebSocketDisconnect
-from fastapi.staticfiles import StaticFiles
-from fastapi.responses import FileResponse
-
-from civ import CIVSerial, CIVController, bcd_to_freq, MODES, PREAMBLE, END_CODE
-from lan import LanCIVTransport
-
-# Configure logging so LAN/CI-V diagnostics are visible
-# Write app.log next to the exe (PyInstaller) or in CWD (dev)
+# === Configure logging BEFORE FastAPI imports (FastAPI configures logging on import) ===
 
 def _log_path() -> str:
     if getattr(sys, "frozen", False):
@@ -31,15 +23,26 @@ def _log_path() -> str:
 
 _handlers = [logging.StreamHandler()]
 try:
-    _handlers.append(logging.FileHandler(_log_path(), encoding="utf-8"))
+    _fh = logging.FileHandler(_log_path(), encoding="utf-8")
+    _handlers.append(_fh)
 except Exception:
-    pass  # can't write log file, console only
+    pass
 
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
     handlers=_handlers,
+    force=True,  # override any handlers set by library imports
 )
+
+logging.info("IC-9700 CI-V Controller starting — log: %s", _log_path())
+
+from fastapi import FastAPI, WebSocket, WebSocketDisconnect
+from fastapi.staticfiles import StaticFiles
+from fastapi.responses import FileResponse
+
+from civ import CIVSerial, CIVController, bcd_to_freq, MODES, PREAMBLE, END_CODE
+from lan import LanCIVTransport
 
 # Global state
 current_transport = CIVSerial()
