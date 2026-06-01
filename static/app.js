@@ -170,7 +170,7 @@ function updateExtControl(item, value) {
       el.className = "btn-toggle " + (v ? "on" : "off");
       return;
     }
-    if (el.tagName === "SELECT" && v < el.options.length) {
+    if (el.tagName === "SELECT") {
       el.value = String(v);
       return;
     }
@@ -616,9 +616,25 @@ function initPanels() {
   const clan = document.getElementById("conn-lan-container");
   makeSelect(clan, 0x0110, "LAN输出选择", ["AF","IF"]);
   makeToggle(clan, 0x0111, "LAN AF静噪");
-  makeSlider1A(clan, 0x0112, "ACC MOD电平", 0, 255);
-  makeSlider1A(clan, 0x0113, "USB MOD电平", 0, 255);
-  makeSlider1A(clan, 0x0114, "LAN MOD电平", 0, 255);
+  // MOD level presets: use select with CI-V values as option values
+  function makeModSelect(name, item) {
+    const div = document.createElement("div"); div.className = "switch-box";
+    const id = "ext-" + item.toString(16).padStart(4,'0');
+    div.innerHTML = `<span class="name">${name}</span><select id="${id}" data-item="${item}">
+      <option value="0">0%</option>
+      <option value="64">25%</option>
+      <option value="128">50%</option>
+      <option value="191">75%</option>
+      <option value="255">100%</option>
+    </select>`;
+    div.querySelector("select").addEventListener("change", (e) => {
+      sendCmd("set_1a_05", {item: item, value: parseInt(e.target.value)});
+    });
+    return div;
+  }
+  clan.appendChild(makeModSelect("ACC MOD", 0x0112));
+  clan.appendChild(makeModSelect("USB MOD", 0x0113));
+  clan.appendChild(makeModSelect("LAN MOD", 0x0114));
   makeSelect(clan, 0x0115, "DATA OFF MOD", ["MIC","ACC","MIC,ACC","USB","MIC,USB","LAN"]);
   makeSelect(clan, 0x0116, "DATA MOD", ["MIC","ACC","MIC,ACC","USB","MIC,USB","LAN"]);
 
