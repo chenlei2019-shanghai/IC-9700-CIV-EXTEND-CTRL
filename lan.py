@@ -201,7 +201,7 @@ class _AsyncIcomTransport:
         self.ping_seq: int = 0
         self._sock: Optional[socket.socket] = None
         self._addr: Optional[tuple[str, int]] = None
-        self._rx_queue: asyncio.Queue = asyncio.Queue(maxsize=4096)
+        self._rx_queue: asyncio.Queue = asyncio.Queue(maxsize=8192)
         self._running: bool = False
         self._tasks: list[asyncio.Task] = []
         self._tx_buffer: OrderedDict[int, bytes] = OrderedDict()
@@ -365,6 +365,15 @@ class _AsyncIcomTransport:
 
         if self._discard_data and ptype == PTYPE_DATA:
             return
+
+        # Filter spectrum/scope data (cmd 0x27) BEFORE queueing
+        # Spectrum packet: 16B UDP hdr + 5B CI-V hdr (C1+datalen+seq) + CI-V frame
+        # CMD byte is at offset HEADER_SIZE + 5 + 4 = 25
+        if ptype == PTYPE_DATA and len(data) >= HEADER_SIZE + 10:
+            off = HEADER_SIZE + 5  # CI-V frame start after C1 header
+            if off + 5 <= len(data) and data[off] == 0xFE and data[off + 1] == 0xFE:
+                if data[off + 4] == 0x27:  # spectrum command
+                    return
 
         if self.remote_id == 0 and sender_id != 0:
             self.remote_id = sender_id
