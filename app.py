@@ -22,14 +22,23 @@ from civ import CIVSerial, CIVController, bcd_to_freq, MODES, PREAMBLE, END_CODE
 from lan import LanCIVTransport
 
 # Configure logging so LAN/CI-V diagnostics are visible
-# Also write to app.log so users can easily capture diagnostics
+# Write app.log next to the exe (PyInstaller) or in CWD (dev)
+
+def _log_path() -> str:
+    if getattr(sys, "frozen", False):
+        return os.path.join(os.path.dirname(sys.executable), "app.log")
+    return os.path.join(os.path.dirname(os.path.abspath(__file__)), "app.log")
+
+_handlers = [logging.StreamHandler()]
+try:
+    _handlers.append(logging.FileHandler(_log_path(), encoding="utf-8"))
+except Exception:
+    pass  # can't write log file, console only
+
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
-    handlers=[
-        logging.StreamHandler(),
-        logging.FileHandler("app.log", encoding="utf-8"),
-    ],
+    handlers=_handlers,
 )
 
 # Global state
