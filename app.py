@@ -190,7 +190,10 @@ def on_serial_data(msg: dict):
     elif cmd == 0x1A:
         out["event"] = "extended"
         subcmd = payload[0] if len(payload) >= 1 else 0
-        if subcmd == 0x05 and len(payload) >= 3:
+        if subcmd == 0x04:  # Extended AGC time constant
+            out["item"] = 0x1A04
+            out["value"] = payload[1] if len(payload) >= 2 else 0
+        elif subcmd == 0x05 and len(payload) >= 3:
             item = (payload[1] << 8) | payload[2]
             out["item"] = item
             data = payload[3:]
@@ -472,6 +475,12 @@ async def websocket_endpoint(websocket: WebSocket):
                 elif action == "read_tx_power_setting":
                     controller.read_tx_power_setting()
 
+                elif action == "set_ext_agc":
+                    controller.set_ext_agc(int(msg["value"]))
+
+                elif action == "read_ext_agc":
+                    controller.read_ext_agc()
+
                 elif action == "set_1a_05":
                     item = int(msg["item"], 0) if isinstance(msg["item"], str) else int(msg["item"])
                     val = msg["value"]
@@ -572,6 +581,8 @@ async def websocket_endpoint(websocket: WebSocket):
                                 threading.Timer(delay * 0.03, controller.read_xfc).start()
                             elif tgt == "tx_power_setting":
                                 threading.Timer(delay * 0.03, controller.read_tx_power_setting).start()
+                        elif typ == "ext_agc":
+                            threading.Timer(delay * 0.03, controller.read_ext_agc).start()
                         delay += 1
 
                 else:

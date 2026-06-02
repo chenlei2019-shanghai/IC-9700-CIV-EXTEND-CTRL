@@ -401,6 +401,8 @@ class CIVController:
 
     def set_preamp(self, v): return self.set_function(0x02, v)
     def set_agc(self, v): return self.set_function(0x12, v)
+    def read_ext_agc(self): return self.send_1a(0x04)
+    def set_ext_agc(self, v: int): return self.send_1a(0x04, data=bytes([v]))
     def set_nb(self, v): return self.set_function(0x22, v)
     def set_nr(self, v): return self.set_function(0x40, v)
     def set_auto_notch(self, v): return self.set_function(0x41, v)

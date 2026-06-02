@@ -296,7 +296,7 @@ const PANEL_EXTRA_READS = {
   "split-duplex": ["split"],
   "rit-xfc":    ["xfc"],
   "tx-power":   ["tx_power_setting"],
-  "agc-preamp": ["attenuator"],
+  "agc-preamp": ["attenuator", "ext_agc"],
 };
 
 function sendPanelReads(reads) {
@@ -466,8 +466,17 @@ function initPanels() {
   const preampSw = document.getElementById("preamp-switches");
   makeSwitch(preampSw, 0x02, "前置放大器", "select", 3, ["OFF","P.AMP ON","EXT-P.AMP ON","BOTH ON"]);
   makeSwitch(preampSw, 0x11, "衰减器", "select", 1, ["OFF","10dB"]);
+  // Extended AGC (1A 04): OFF + 14 fine steps
   const agcSw = document.getElementById("agc-switches");
-  makeSwitch(agcSw, 0x12, "AGC时间", "select", 3, ["","FAST","MID","SLOW"]);
+  const agcNames = ["OFF (关闭)", "0.1s (快)", "0.2s", "0.3s", "0.5s", "0.8s", "1.2s", "1.6s", "2.0s", "2.5s", "3.0s", "4.0s", "5.0s", "6.0s"];
+  const agcDiv = document.createElement("div"); agcDiv.className = "switch-box";
+  agcDiv.innerHTML = `<span class="name">AGC时间</span><select id="ext-1a04">
+    ${agcNames.map((n,i)=>`<option value="${i}">${n}</option>`).join("")}
+  </select>`;
+  agcSw.appendChild(agcDiv);
+  agcDiv.querySelector("select").addEventListener("change", (e)=>{
+    sendCmd("set_ext_agc", {value: parseInt(e.target.value)});
+  });
 
   // MIC Audio
   const micSliders = document.getElementById("mic-sliders");
