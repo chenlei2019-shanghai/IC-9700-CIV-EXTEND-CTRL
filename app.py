@@ -581,8 +581,8 @@ async def websocket_endpoint(websocket: WebSocket):
                                 threading.Timer(delay * 0.03, controller.read_xfc).start()
                             elif tgt == "tx_power_setting":
                                 threading.Timer(delay * 0.03, controller.read_tx_power_setting).start()
-                        elif typ == "ext_agc":
-                            threading.Timer(delay * 0.03, controller.read_ext_agc).start()
+                            elif tgt == "ext_agc":
+                                threading.Timer(delay * 0.03, controller.read_ext_agc).start()
                         delay += 1
 
                 else:
