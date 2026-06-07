@@ -528,6 +528,11 @@ async def websocket_endpoint(websocket: WebSocket):
                             controller.read_smeter()
                         elif t == "tx_status":
                             controller.read_tx_status()
+                        elif t == "sat_freqs":
+                            controller.read_frequency()
+                            controller.read_mode()
+                        elif t == "sat_sub_freqs":
+                            controller.ser.send(0x07, data=bytes([0xD2, 0x01]))  # read sub band
                         elif t == "split":
                             controller.read_split()
                         elif t == "tuning_step":

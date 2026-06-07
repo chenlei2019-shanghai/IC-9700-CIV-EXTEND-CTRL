@@ -94,6 +94,8 @@ function handleCIV(msg) {
   if (msg.event === "frequency") {
     currentFreq = msg.frequency || 0;
     document.getElementById("disp-freq").textContent = formatFreq(currentFreq);
+    if (_satMainHz === 0) _satMainHz = currentFreq;
+    document.getElementById("sat-main-freq").textContent = formatSatFreq(currentFreq) + " MHz";
   } else if (msg.event === "mode") {
     currentMode = msg.mode || ""; currentFilter = msg.filter || "";
     document.getElementById("disp-mode").textContent = currentMode;
@@ -924,4 +926,96 @@ document.addEventListener("DOMContentLoaded", () => {
   document.querySelectorAll("[data-cmd='vfo']").forEach(btn=>btn.addEventListener("click", ()=>sendCmd("vfo", {vfo:btn.dataset.val})));
   document.querySelectorAll("[data-cmd='scan']").forEach(btn=>btn.addEventListener("click", ()=>sendCmd("scan", {type:btn.dataset.val})));
   document.querySelectorAll("[data-cmd='duplex']").forEach(btn=>btn.addEventListener("click", ()=>sendCmd("set_duplex", {duplex:btn.dataset.val})));
+
+  // ========== Satellite Panel ==========
+  let _satMainHz = 0, _satMainMd = "";
+
+  document.getElementById("btn-sat-mode").addEventListener("click", function() {
+    const isOn = this.textContent.includes("ON");
+    sendCmd("set_function", {subcmd: 0x5A, value: isOn ? 0 : 1});
+    this.textContent = isOn ? "卫星模式 OFF" : "卫星模式 ON";
+    this.className = "btn-toggle " + (isOn ? "off" : "on");
+  });
+
+  document.getElementById("btn-sat-main").addEventListener("click", function() {
+    sendCmd("vfo", {vfo: "main"});
+    this.className = "btn-toggle on";
+    document.getElementById("btn-sat-sub").className = "btn-toggle off";
+    setTimeout(() => sendCmd("poll", {targets: ["freq", "mode"]}), 300); // trigger refresh
+  });
+
+  document.getElementById("btn-sat-sub").addEventListener("click", function() {
+    sendCmd("vfo", {vfo: "sub"});
+    this.className = "btn-toggle off";
+    document.getElementById("btn-sat-sub").className = "btn-toggle on";
+    setTimeout(() => sendCmd("poll", {targets: ["freq", "mode"]}), 300);
+  });
+
+  document.getElementById("btn-sat-vfo-eq").addEventListener("click", ()=>sendCmd("vfo", {vfo: "equal"}));
+  document.getElementById("btn-sat-vfo-ex").addEventListener("click", ()=>{
+    sendCmd("vfo", {vfo: "exchange"});
+    // Swap stored freqs
+    [document.getElementById("sat-rx-freq").value, document.getElementById("sat-tx-freq").value] =
+      [document.getElementById("sat-tx-freq").value, document.getElementById("sat-rx-freq").value];
+  });
+
+  document.getElementById("btn-sat-set-rx").addEventListener("click", ()=>{
+    const f = parseInt(document.getElementById("sat-rx-freq").value);
+    if (isNaN(f)) return;
+    const m = parseInt(document.getElementById("sat-rx-mode").value);
+    sendCmd("set_frequency", {freq: f});
+    sendCmd("set_mode", {mode: m, filter: 1});
+    _satMainHz = f; _satMainMd = MODES_REV_JS[m] || "---";
+    updateSatDisplay();
+  });
+
+  document.getElementById("btn-sat-set-tx").addEventListener("click", ()=>{
+    const f = parseInt(document.getElementById("sat-tx-freq").value);
+    if (isNaN(f)) return;
+    const m = parseInt(document.getElementById("sat-tx-mode").value);
+    // Use VFO select: first go to sub, set freq+mode, then back to main
+    sendCmd("vfo", {vfo: "sub"});
+    setTimeout(() => {
+      sendCmd("set_frequency", {freq: f});
+      sendCmd("set_mode", {mode: m, filter: 1});
+      setTimeout(() => sendCmd("vfo", {vfo: "main"}), 150);
+    }, 180);
+  });
+
+  const MODES_REV_JS = {0: "LSB", 1: "USB", 2: "AM", 3: "CW", 4: "RTTY", 5: "FM", 7: "CW-R", 8: "RTTY-R", 23: "DV", 34: "DD"};
+
+  document.querySelectorAll("#sat-presets button").forEach(btn => {
+    btn.addEventListener("click", ()=>{
+      const tx = parseInt(btn.dataset.tx);
+      const rx = parseInt(btn.dataset.rx);
+      const txm = parseInt(btn.dataset.txm);
+      const rxm = parseInt(btn.dataset.rxm);
+      if (!isNaN(rx)) {
+        document.getElementById("sat-rx-freq").value = rx;
+        document.getElementById("sat-rx-mode").value = "0x" + txm.toString(16).padStart(2,'0');
+        _satMainHz = rx; _satMainMd = MODES_REV_JS[txm] || "---";
+      }
+      if (!isNaN(tx)) {
+        document.getElementById("sat-tx-freq").value = tx;
+        document.getElementById("sat-tx-mode").value = "0x" + rxm.toString(16).padStart(2,'0');
+      }
+      updateSatDisplay();
+      document.getElementById("btn-sat-set-rx").click();
+      setTimeout(()=>document.getElementById("btn-sat-set-tx").click(), 400);
+    });
+  });
+
+  function updateSatDisplay() {
+    document.getElementById("sat-main-freq").textContent = formatSatFreq(_satMainHz) + " MHz";
+    document.getElementById("sat-main-mode").textContent = _satMainMd;
+  }
+
+  function formatSatFreq(hz) {
+    if (!hz) return "---.---.---";
+    const m = hz / 1e6;
+    const parts = m.toFixed(3).split('.');
+    return parts[0] + '.' + parts[1].padStart(3,'0');
+  }
+
+  updateSatDisplay();
 });

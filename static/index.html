@@ -183,6 +183,13 @@
       </div>
 
       <div class="tree-node">
+        <div class="tree-branch" data-expand><span class="arrow">▶</span><span class="icon">🛰️</span><span class="label">卫星操作</span></div>
+        <div class="tree-children">
+          <div class="tree-leaf" data-target="sat">卫星面板</div>
+        </div>
+      </div>
+
+      <div class="tree-node">
         <div class="tree-branch" data-target="raw"><span class="icon">🔧</span><span class="label">原始命令</span></div>
       </div>
       <div class="tree-node">
@@ -590,6 +597,74 @@
       </section>
       <section class="panel-section" id="panel-dtmf">
         <div class="card"><h3>DTMF / NB设置 / 功率限制</h3><div id="dtmf-container"></div></div>
+      </section>
+
+      <!-- SATELLITE -->
+      <section class="panel-section" id="panel-sat">
+        <div class="card">
+          <h3>🛰️ 卫星模式</h3>
+          <div class="sat-display">
+            <div class="sat-vfo" id="sat-main-display">
+              <div class="sat-band-label">MAIN <span class="sat-arrow">▼ RX</span></div>
+              <div class="sat-freq" id="sat-main-freq">---.---.---</div>
+              <div class="sat-mode" id="sat-main-mode">---</div>
+            </div>
+            <div class="sat-divider"></div>
+            <div class="sat-vfo" id="sat-sub-display">
+              <div class="sat-band-label">SUB <span class="sat-arrow sat-tx">▲ TX</span></div>
+              <div class="sat-freq" id="sat-sub-freq">---.---.---</div>
+              <div class="sat-mode" id="sat-sub-mode">---</div>
+            </div>
+          </div>
+          <div style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap">
+            <button id="btn-sat-mode" class="btn-toggle off">卫星模式 OFF</button>
+            <button id="btn-sat-vfo-eq" class="btn-primary">A = B</button>
+            <button id="btn-sat-vfo-ex" class="btn-primary">A ↔ B</button>
+            <button id="btn-sat-main" class="btn-toggle on">MAIN</button>
+            <button id="btn-sat-sub" class="btn-toggle off">SUB</button>
+          </div>
+        </div>
+        <div class="card">
+          <h3>上行 (TX Uplink)</h3>
+          <div class="row">
+            <input type="number" id="sat-tx-freq" placeholder="发射频率 (Hz)" style="flex:1">
+            <button id="btn-sat-set-tx">设置 TX</button>
+            <select id="sat-tx-mode">
+              <option value="0x01">USB</option>
+              <option value="0x05">FM</option>
+              <option value="0x03">CW</option>
+              <option value="0x02">AM</option>
+              <option value="0x17" selected>DV</option>
+            </select>
+          </div>
+        </div>
+        <div class="card">
+          <h3>下行 (RX Downlink)</h3>
+          <div class="row">
+            <input type="number" id="sat-rx-freq" placeholder="接收频率 (Hz)" style="flex:1">
+            <button id="btn-sat-set-rx">设置 RX</button>
+            <select id="sat-rx-mode">
+              <option value="0x01">USB</option>
+              <option value="0x05" selected>FM</option>
+              <option value="0x03">CW</option>
+              <option value="0x02">AM</option>
+              <option value="0x17">DV</option>
+            </select>
+          </div>
+        </div>
+        <div class="card">
+          <h3>常用卫星预设</h3>
+          <div class="btn-group" id="sat-presets">
+            <button data-tx="145990000" data-rx="437800000" data-txm="0x05" data-rxm="0x05">SO-50</button>
+            <button data-tx="435250000" data-rx="145960000" data-txm="0x01" data-rxm="0x01">AO-91</button>
+            <button data-tx="435240000" data-rx="145880000" data-txm="0x01" data-rxm="0x01">AO-92</button>
+            <button data-tx="145800000" data-rx="437795000" data-txm="0x05" data-rxm="0x05">ISS APRS</button>
+            <button data-tx="435300000" data-rx="145825000" data-txm="0x01" data-rxm="0x01">AO-73</button>
+            <button data-tx="435280000" data-rx="145840000" data-txm="0x01" data-rxm="0x01">PO-101</button>
+            <button data-tx="435070000" data-rx="145975000" data-txm="0x01" data-rxm="0x01">CAS-4A</button>
+            <button data-tx="435180000" data-rx="145915000" data-txm="0x01" data-rxm="0x01">CAS-4B</button>
+          </div>
+        </div>
       </section>
 
       <!-- RAW -->

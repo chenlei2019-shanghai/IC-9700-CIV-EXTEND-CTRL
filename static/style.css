@@ -213,3 +213,32 @@ button:active { transform: translateY(1px); }
   .app-body { flex-direction: column; }
   .sidebar { width: 100%; max-height: 35vh; border-right: none; border-bottom: 1px solid #1f2937; }
 }
+
+/* ===== Satellite Display ===== */
+.sat-display {
+  background: #0a1628; border: 2px solid #1e3a5f; border-radius: 10px;
+  padding: 8px; max-width: 460px; margin: 0 auto;
+}
+.sat-vfo {
+  padding: 10px 14px; border-radius: 6px;
+}
+.sat-band-label {
+  color: #94a3b8; font-size: 0.75rem; text-transform: uppercase;
+  letter-spacing: 1px; margin-bottom: 4px; display: flex; align-items: center; gap: 6px;
+}
+.sat-arrow { font-size: 0.85rem; color: #22d3ee; }
+.sat-arrow.sat-tx { color: #f87171; }
+.sat-freq {
+  font-family: 'Consolas', 'Courier New', monospace;
+  font-size: 1.6rem; font-weight: bold; color: #e2e8f0;
+  letter-spacing: 1px;
+}
+.sat-mode {
+  color: #60a5fa; font-size: 0.9rem; margin-top: 2px;
+}
+.sat-divider {
+  height: 2px; background: linear-gradient(90deg, transparent, #3b82f6, transparent);
+  margin: 2px 0;
+}
+#sat-main-display { border-left: 3px solid #22d3ee; }
+#sat-sub-display { border-left: 3px solid #f87171; }
