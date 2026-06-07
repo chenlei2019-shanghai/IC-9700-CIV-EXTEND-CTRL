@@ -94,8 +94,7 @@ function handleCIV(msg) {
   if (msg.event === "frequency") {
     currentFreq = msg.frequency || 0;
     document.getElementById("disp-freq").textContent = formatFreq(currentFreq);
-    if (_satMainHz === 0) _satMainHz = currentFreq;
-    document.getElementById("sat-main-freq").textContent = formatSatFreq(currentFreq) + " MHz";
+    if (typeof updateSatDisplay === "function") updateSatDisplay();
   } else if (msg.event === "mode") {
     currentMode = msg.mode || ""; currentFilter = msg.filter || "";
     document.getElementById("disp-mode").textContent = currentMode;
