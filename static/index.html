@@ -602,68 +602,55 @@
       <!-- SATELLITE -->
       <section class="panel-section" id="panel-sat">
         <div class="card">
-          <h3>🛰️ 卫星模式</h3>
+          <h3>🛰️ 卫星模式 <span id="sat-name-display" style="color:#60a5fa;font-weight:normal"></span></h3>
           <div class="sat-display">
             <div class="sat-vfo" id="sat-main-display">
-              <div class="sat-band-label">MAIN <span class="sat-arrow">▼ RX</span></div>
+              <div class="sat-band-label">MAIN ▼ RX (下行)</div>
               <div class="sat-freq" id="sat-main-freq">---.---.---</div>
               <div class="sat-mode" id="sat-main-mode">---</div>
+              <div class="sat-shift" id="sat-rx-shift"></div>
             </div>
             <div class="sat-divider"></div>
             <div class="sat-vfo" id="sat-sub-display">
-              <div class="sat-band-label">SUB <span class="sat-arrow sat-tx">▲ TX</span></div>
+              <div class="sat-band-label">SUB  ▲ TX (上行)</div>
               <div class="sat-freq" id="sat-sub-freq">---.---.---</div>
               <div class="sat-mode" id="sat-sub-mode">---</div>
+              <div class="sat-shift" id="sat-tx-shift"></div>
             </div>
           </div>
+          <div class="sat-info" id="sat-azel"></div>
           <div style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap">
-            <button id="btn-sat-mode" class="btn-toggle off">卫星模式 OFF</button>
-            <button id="btn-sat-vfo-eq" class="btn-primary">A = B</button>
-            <button id="btn-sat-vfo-ex" class="btn-primary">A ↔ B</button>
             <button id="btn-sat-main" class="btn-toggle on">MAIN</button>
             <button id="btn-sat-sub" class="btn-toggle off">SUB</button>
+            <button id="btn-sat-vfo-eq" class="btn-primary">A = B</button>
+            <button id="btn-sat-vfo-ex" class="btn-primary">A ↔ B</button>
+          </div>
+          <div style="margin-top:8px">
+            <select id="sat-select" style="flex:1;min-width:120px"></select>
+            <button id="btn-sat-doppler" class="btn-primary" style="margin-left:8px">🔭 Doppler 计算</button>
+            <button id="btn-sat-apply" class="btn-primary" style="margin-left:8px">📡 应用到电台</button>
           </div>
         </div>
         <div class="card">
-          <h3>上行 (TX Uplink)</h3>
-          <div class="row">
-            <input type="number" id="sat-tx-freq" placeholder="发射频率 (Hz)" style="flex:1">
-            <button id="btn-sat-set-tx">设置 TX</button>
-            <select id="sat-tx-mode">
-              <option value="0x01">USB</option>
-              <option value="0x05">FM</option>
-              <option value="0x03">CW</option>
-              <option value="0x02">AM</option>
-              <option value="0x17" selected>DV</option>
-            </select>
+          <h3>TLE 轨道数据</h3>
+          <textarea id="sat-tle" rows="3" placeholder="粘贴 3 行 TLE 数据（名称+两行轨道参数）&#10;例:&#10;ISS (ZARYA)&#10;1 25544U 98067A   24125.12345678  .00001234  00000+0  23456-4 0  9991&#10;2 25544  51.6423 123.4567 0001234  12.3456 123.4567 15.12345678123456" style="width:100%;font-family:monospace;font-size:0.75rem"></textarea>
+          <div style="display:flex;gap:8px;margin-top:6px">
+            <button id="btn-sat-tle-update">更新 TLE</button>
+            <button id="btn-sat-tle-clear">清除</button>
           </div>
         </div>
         <div class="card">
-          <h3>下行 (RX Downlink)</h3>
-          <div class="row">
-            <input type="number" id="sat-rx-freq" placeholder="接收频率 (Hz)" style="flex:1">
-            <button id="btn-sat-set-rx">设置 RX</button>
-            <select id="sat-rx-mode">
-              <option value="0x01">USB</option>
-              <option value="0x05" selected>FM</option>
-              <option value="0x03">CW</option>
-              <option value="0x02">AM</option>
-              <option value="0x17">DV</option>
-            </select>
+          <h3>观测站位置</h3>
+          <div class="row" style="gap:6px">
+            <input type="number" id="sat-observer-lat" placeholder="纬度 (如 31.23)" step="0.01" style="width:110px" value="31.23">
+            <input type="number" id="sat-observer-lon" placeholder="经度 (如 121.47)" step="0.01" style="width:110px" value="121.47">
+            <input type="number" id="sat-observer-alt" placeholder="海拔(m)" style="width:80px" value="50">
+            <button id="btn-sat-observer-set">设置</button>
           </div>
         </div>
         <div class="card">
           <h3>常用卫星预设</h3>
-          <div class="btn-group" id="sat-presets">
-            <button data-tx="145990000" data-rx="437800000" data-txm="0x05" data-rxm="0x05">SO-50</button>
-            <button data-tx="435250000" data-rx="145960000" data-txm="0x01" data-rxm="0x01">AO-91</button>
-            <button data-tx="435240000" data-rx="145880000" data-txm="0x01" data-rxm="0x01">AO-92</button>
-            <button data-tx="145800000" data-rx="437795000" data-txm="0x05" data-rxm="0x05">ISS APRS</button>
-            <button data-tx="435300000" data-rx="145825000" data-txm="0x01" data-rxm="0x01">AO-73</button>
-            <button data-tx="435280000" data-rx="145840000" data-txm="0x01" data-rxm="0x01">PO-101</button>
-            <button data-tx="435070000" data-rx="145975000" data-txm="0x01" data-rxm="0x01">CAS-4A</button>
-            <button data-tx="435180000" data-rx="145915000" data-txm="0x01" data-rxm="0x01">CAS-4B</button>
-          </div>
+          <div class="btn-group" id="sat-presets"></div>
         </div>
       </section>
 

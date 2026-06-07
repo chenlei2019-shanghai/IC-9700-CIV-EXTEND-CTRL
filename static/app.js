@@ -928,86 +928,147 @@ document.addEventListener("DOMContentLoaded", () => {
   document.querySelectorAll("[data-cmd='duplex']").forEach(btn=>btn.addEventListener("click", ()=>sendCmd("set_duplex", {duplex:btn.dataset.val})));
 
   // ========== Satellite Panel ==========
-  let _satMainHz = 0, _satMainMd = "";
+  let _satMainHz = 0, _satMainMd = "", _satSubHz = 0, _satSubMd = "";
+  let _satCurrent = "SO-50";
+  const SAT_MODES_REV = {0: "LSB", 1: "USB", 2: "AM", 3: "CW", 4: "RTTY", 5: "FM", 7: "CW-R", 8: "RTTY-R", 23: "DV", 34: "DD"};
+  const SAT_MODE_MAP = {"LSB":0,"USB":1,"AM":2,"CW":3,"RTTY":4,"FM":5,"CW-R":7,"RTTY-R":8,"DV":23,"DD":34};
 
-  document.getElementById("btn-sat-mode").addEventListener("click", function() {
-    const isOn = this.textContent.includes("ON");
-    sendCmd("set_function", {subcmd: 0x5A, value: isOn ? 0 : 1});
-    this.textContent = isOn ? "卫星模式 OFF" : "卫星模式 ON";
-    this.className = "btn-toggle " + (isOn ? "off" : "on");
+  async function loadSatPresets() {
+    try {
+      const r = await (await fetch("/api/sat/presets")).json();
+      const presets = document.getElementById("sat-presets");
+      const sel = document.getElementById("sat-select");
+      presets.innerHTML = ""; sel.innerHTML = "";
+      Object.entries(r.presets).forEach(([name, p]) => {
+        const tag = r.active_tle.includes(name) ? " ✔" : "";
+        presets.innerHTML += `<button data-name="${name}">${name}${tag}</button>`;
+        sel.innerHTML += `<option value="${name}">${name}${tag}</option>`;
+      });
+      document.querySelectorAll("#sat-presets button").forEach(btn => {
+        btn.addEventListener("click", () => selectSatellite(btn.dataset.name));
+      });
+      if (r.active_tle.length > 0) _satCurrent = r.active_tle[0];
+    } catch(e) {}
+  }
+
+  async function selectSatellite(name) {
+    _satCurrent = name;
+    document.getElementById("sat-name-display").textContent = "— " + name;
+    try {
+      const r = await (await fetch("/api/sat/presets")).json();
+      const p = r.presets[name];
+      if (p) {
+        _satMainHz = p.downlink; _satMainMd = p.downlink_mode;
+        _satSubHz = p.uplink; _satSubMd = p.uplink_mode;
+        updateSatDisplay();
+        document.getElementById("sat-select").value = name;
+      }
+    } catch(e) {}
+    // Auto doppler calc if TLE available
+    calcDoppler(name);
+  }
+
+  async function calcDoppler(name) {
+    let n = name || _satCurrent;
+    try {
+      const r = await (await fetch("/api/sat/doppler?name=" + encodeURIComponent(n))).json();
+      if (r.error) { document.getElementById("sat-azel").textContent = r.error; return; }
+      _satMainHz = r.downlink_doppler; _satSubHz = r.uplink_doppler;
+      updateSatDisplay();
+      document.getElementById("sat-rx-shift").textContent =
+        "Doppler: " + (r.downlink_shift_hz >= 0 ? "+" : "") + r.downlink_shift_hz + " Hz  |  " +
+        (r.range_rate_ms >= 0 ? "远离" : "接近") + " " + Math.abs(r.range_rate_ms).toFixed(0) + " m/s";
+      document.getElementById("sat-tx-shift").textContent =
+        "Doppler: " + (r.uplink_shift_hz >= 0 ? "+" : "") + r.uplink_shift_hz + " Hz";
+      document.getElementById("sat-azel").innerHTML =
+        "📍 仰角 <b>" + r.elevation + "°</b>  |  🧭 方位角 <b>" + r.azimuth + "°</b>  |  " +
+        "范围速率 <b>" + r.range_rate_ms.toFixed(0) + "</b> m/s";
+      r.available.forEach(n => {
+        const opt = document.querySelector("#sat-select option[value='" + n + "']");
+        if (opt) opt.textContent = n + " ✔";
+      });
+      document.getElementById("sat-name-display").textContent = "— " + n;
+    } catch(e) { document.getElementById("sat-azel").textContent = "Doppler 计算失败"; }
+  }
+
+  // Event: TLE update
+  document.getElementById("btn-sat-tle-update").addEventListener("click", async () => {
+    const raw = document.getElementById("sat-tle").value.trim();
+    if (!raw) return;
+    const lines = raw.split("\n").filter(l => l.trim());
+    if (lines.length < 2) { alert("需要至少 2 行（轨道参数）"); return; }
+    const name = lines[0].trim();
+    const l1 = lines.length >= 2 ? lines[1].trim() : "";
+    const l2 = lines.length >= 3 ? lines[2].trim() : (lines.length >= 2 ? lines[0].trim() : "");
+    try {
+      const r = await (await fetch("/api/sat/tle?name=" + encodeURIComponent(name) +
+        "&line1=" + encodeURIComponent(l1) + "&line2=" + encodeURIComponent(l2), {method: "POST"})).json();
+      if (r.success) { loadSatPresets(); selectSatellite(name); }
+    } catch(e) { alert("TLE 更新失败"); }
   });
 
+  document.getElementById("btn-sat-tle-clear").addEventListener("click", ()=>{
+    document.getElementById("sat-tle").value = "";
+  });
+
+  // Event: observer location
+  document.getElementById("btn-sat-observer-set").addEventListener("click", async () => {
+    const lat = document.getElementById("sat-observer-lat").value;
+    const lon = document.getElementById("sat-observer-lon").value;
+    const alt = document.getElementById("sat-observer-alt").value;
+    try {
+      await fetch("/api/sat/observer?lat=" + lat + "&lon=" + lon + "&alt_m=" + alt, {method: "POST"});
+      calcDoppler(_satCurrent);
+    } catch(e) {}
+  });
+
+  // Event: Doppler calc button
+  document.getElementById("btn-sat-doppler").addEventListener("click", () => calcDoppler(_satCurrent));
+
+  // Event: satellite select dropdown
+  document.getElementById("sat-select").addEventListener("change", function() {
+    selectSatellite(this.value);
+  });
+
+  // Event: Apply to radio
+  document.getElementById("btn-sat-apply").addEventListener("click", () => {
+    if (_satSubHz > 0) {
+      sendCmd("vfo", {vfo: "sub"});
+      setTimeout(() => {
+        sendCmd("set_frequency", {freq: _satSubHz});
+        const txm = SAT_MODE_MAP[_satSubMd] || 5;
+        sendCmd("set_mode", {mode: txm, filter: 1});
+        setTimeout(() => sendCmd("vfo", {vfo: "main"}), 200);
+      }, 200);
+    }
+    if (_satMainHz > 0) {
+      setTimeout(() => {
+        sendCmd("set_frequency", {freq: _satMainHz});
+        const rxm = SAT_MODE_MAP[_satMainMd] || 5;
+        sendCmd("set_mode", {mode: rxm, filter: 1});
+      }, 500);
+    }
+  });
+
+  // VFO controls
   document.getElementById("btn-sat-main").addEventListener("click", function() {
     sendCmd("vfo", {vfo: "main"});
     this.className = "btn-toggle on";
     document.getElementById("btn-sat-sub").className = "btn-toggle off";
-    setTimeout(() => sendCmd("poll", {targets: ["freq", "mode"]}), 300); // trigger refresh
   });
-
   document.getElementById("btn-sat-sub").addEventListener("click", function() {
     sendCmd("vfo", {vfo: "sub"});
     this.className = "btn-toggle off";
     document.getElementById("btn-sat-sub").className = "btn-toggle on";
-    setTimeout(() => sendCmd("poll", {targets: ["freq", "mode"]}), 300);
   });
-
   document.getElementById("btn-sat-vfo-eq").addEventListener("click", ()=>sendCmd("vfo", {vfo: "equal"}));
-  document.getElementById("btn-sat-vfo-ex").addEventListener("click", ()=>{
-    sendCmd("vfo", {vfo: "exchange"});
-    // Swap stored freqs
-    [document.getElementById("sat-rx-freq").value, document.getElementById("sat-tx-freq").value] =
-      [document.getElementById("sat-tx-freq").value, document.getElementById("sat-rx-freq").value];
-  });
-
-  document.getElementById("btn-sat-set-rx").addEventListener("click", ()=>{
-    const f = parseInt(document.getElementById("sat-rx-freq").value);
-    if (isNaN(f)) return;
-    const m = parseInt(document.getElementById("sat-rx-mode").value);
-    sendCmd("set_frequency", {freq: f});
-    sendCmd("set_mode", {mode: m, filter: 1});
-    _satMainHz = f; _satMainMd = MODES_REV_JS[m] || "---";
-    updateSatDisplay();
-  });
-
-  document.getElementById("btn-sat-set-tx").addEventListener("click", ()=>{
-    const f = parseInt(document.getElementById("sat-tx-freq").value);
-    if (isNaN(f)) return;
-    const m = parseInt(document.getElementById("sat-tx-mode").value);
-    // Use VFO select: first go to sub, set freq+mode, then back to main
-    sendCmd("vfo", {vfo: "sub"});
-    setTimeout(() => {
-      sendCmd("set_frequency", {freq: f});
-      sendCmd("set_mode", {mode: m, filter: 1});
-      setTimeout(() => sendCmd("vfo", {vfo: "main"}), 150);
-    }, 180);
-  });
-
-  const MODES_REV_JS = {0: "LSB", 1: "USB", 2: "AM", 3: "CW", 4: "RTTY", 5: "FM", 7: "CW-R", 8: "RTTY-R", 23: "DV", 34: "DD"};
-
-  document.querySelectorAll("#sat-presets button").forEach(btn => {
-    btn.addEventListener("click", ()=>{
-      const tx = parseInt(btn.dataset.tx);
-      const rx = parseInt(btn.dataset.rx);
-      const txm = parseInt(btn.dataset.txm);
-      const rxm = parseInt(btn.dataset.rxm);
-      if (!isNaN(rx)) {
-        document.getElementById("sat-rx-freq").value = rx;
-        document.getElementById("sat-rx-mode").value = "0x" + txm.toString(16).padStart(2,'0');
-        _satMainHz = rx; _satMainMd = MODES_REV_JS[txm] || "---";
-      }
-      if (!isNaN(tx)) {
-        document.getElementById("sat-tx-freq").value = tx;
-        document.getElementById("sat-tx-mode").value = "0x" + rxm.toString(16).padStart(2,'0');
-      }
-      updateSatDisplay();
-      document.getElementById("btn-sat-set-rx").click();
-      setTimeout(()=>document.getElementById("btn-sat-set-tx").click(), 400);
-    });
-  });
+  document.getElementById("btn-sat-vfo-ex").addEventListener("click", ()=>sendCmd("vfo", {vfo: "exchange"}));
 
   function updateSatDisplay() {
     document.getElementById("sat-main-freq").textContent = formatSatFreq(_satMainHz) + " MHz";
     document.getElementById("sat-main-mode").textContent = _satMainMd;
+    document.getElementById("sat-sub-freq").textContent = formatSatFreq(_satSubHz) + " MHz";
+    document.getElementById("sat-sub-mode").textContent = _satSubMd;
   }
 
   function formatSatFreq(hz) {
@@ -1017,5 +1078,5 @@ document.addEventListener("DOMContentLoaded", () => {
     return parts[0] + '.' + parts[1].padStart(3,'0');
   }
 
-  updateSatDisplay();
+  loadSatPresets();
 });

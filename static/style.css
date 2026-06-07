@@ -242,3 +242,6 @@ button:active { transform: translateY(1px); }
 }
 #sat-main-display { border-left: 3px solid #22d3ee; }
 #sat-sub-display { border-left: 3px solid #f87171; }
+.sat-shift { color: #fbbf24; font-size: 0.7rem; margin-top: 2px; font-family: monospace; }
+.sat-info { background: #1e293b; padding: 6px 10px; border-radius: 4px; margin-top: 8px; font-size: 0.8rem; color: #94a3b8; }
+.sat-info b { color: #e2e8f0; }
