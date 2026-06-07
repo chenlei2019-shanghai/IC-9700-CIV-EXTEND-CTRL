@@ -371,6 +371,31 @@ async def sat_presets():
     return {"presets": SATELLITE_PRESETS, "active_tle": has_tle}
 
 
+@app.post("/api/sat/tle_fetch")
+async def sat_tle_fetch(url: str = ""):
+    """Fetch TLE data from a URL and load all satellites found."""
+    import urllib.request
+    try:
+        resp = urllib.request.urlopen(url, timeout=15)
+        text = resp.read().decode("utf-8", errors="replace")
+        lines = text.strip().split("\n")
+        count = 0
+        i = 0
+        while i + 2 < len(lines):
+            name = lines[i].strip()
+            l1 = lines[i + 1].strip() if i + 1 < len(lines) else ""
+            l2 = lines[i + 2].strip() if i + 2 < len(lines) else ""
+            if l1.startswith("1 ") and l2.startswith("2 "):
+                set_tle(name, l1, l2)
+                count += 1
+                i += 3
+            else:
+                i += 1
+        return {"success": True, "count": count, "names": get_tle_names()}
+    except Exception as e:
+        return {"success": False, "error": str(e)}
+
+
 @app.websocket("/ws")
 async def websocket_endpoint(websocket: WebSocket):
     await websocket.accept()

@@ -601,55 +601,81 @@
 
       <!-- SATELLITE -->
       <section class="panel-section" id="panel-sat">
-        <div class="card">
-          <h3>🛰️ 卫星模式 <span id="sat-name-display" style="color:#60a5fa;font-weight:normal"></span></h3>
-          <div class="sat-display">
-            <div class="sat-vfo" id="sat-main-display">
-              <div class="sat-band-label">MAIN ▼ RX (下行)</div>
-              <div class="sat-freq" id="sat-main-freq">---.---.---</div>
-              <div class="sat-mode" id="sat-main-mode">---</div>
-              <div class="sat-shift" id="sat-rx-shift"></div>
-            </div>
-            <div class="sat-divider"></div>
-            <div class="sat-vfo" id="sat-sub-display">
-              <div class="sat-band-label">SUB  ▲ TX (上行)</div>
-              <div class="sat-freq" id="sat-sub-freq">---.---.---</div>
-              <div class="sat-mode" id="sat-sub-mode">---</div>
-              <div class="sat-shift" id="sat-tx-shift"></div>
-            </div>
-          </div>
-          <div class="sat-info" id="sat-azel"></div>
-          <div style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap">
-            <button id="btn-sat-main" class="btn-toggle on">MAIN</button>
-            <button id="btn-sat-sub" class="btn-toggle off">SUB</button>
-            <button id="btn-sat-vfo-eq" class="btn-primary">A = B</button>
-            <button id="btn-sat-vfo-ex" class="btn-primary">A ↔ B</button>
-          </div>
-          <div style="margin-top:8px">
-            <select id="sat-select" style="flex:1;min-width:120px"></select>
-            <button id="btn-sat-doppler" class="btn-primary" style="margin-left:8px">🔭 Doppler 计算</button>
-            <button id="btn-sat-apply" class="btn-primary" style="margin-left:8px">📡 应用到电台</button>
+        <!-- Sat Search -->
+        <div class="card" style="padding:8px 12px">
+          <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+            <input type="text" id="sat-search" placeholder="搜索卫星名称..." style="flex:1;min-width:140px" list="sat-datalist">
+            <datalist id="sat-datalist"></datalist>
+            <button id="btn-sat-search">🔍</button>
+            <select id="sat-select" style="width:130px"></select>
+            <button id="btn-sat-doppler" class="btn-primary">Doppler</button>
+            <button id="btn-sat-apply" class="btn-primary">📡 应用到电台</button>
+            <button id="btn-sat-tle-panel" class="btn-toggle">TLE</button>
+            <button id="btn-sat-obs-panel" class="btn-toggle">📍位置</button>
           </div>
         </div>
-        <div class="card">
+
+        <!-- Main Display Row -->
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+          <!-- Frequency / Doppler Display -->
+          <div class="card" style="flex:1;min-width:300px">
+            <h3 style="margin-bottom:6px" id="sat-name-display">-- 选择卫星 --</h3>
+            <div class="sat-display">
+              <div class="sat-vfo" id="sat-main-display">
+                <div class="sat-band-label">DOWN 下行 ▼ <span id="sat-down-nom"></span></div>
+                <div class="sat-freq" id="sat-main-freq">---.---.---</div>
+                <div class="sat-mode" id="sat-main-mode">---</div>
+                <div class="sat-shift" id="sat-rx-shift"></div>
+              </div>
+              <div class="sat-divider"></div>
+              <div class="sat-vfo" id="sat-sub-display">
+                <div class="sat-band-label">UP 上行 ▲ <span id="sat-up-nom"></span></div>
+                <div class="sat-freq" id="sat-sub-freq">---.---.---</div>
+                <div class="sat-mode" id="sat-sub-mode">---</div>
+                <div class="sat-shift" id="sat-tx-shift"></div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Position / Info -->
+          <div class="card" style="width:200px;text-align:center">
+            <h3>位置</h3>
+            <div class="sat-info" id="sat-azel" style="font-size:1.1rem">--</div>
+            <div style="display:flex;gap:4px;margin-top:8px;flex-wrap:wrap;justify-content:center">
+              <button id="btn-sat-main" class="btn-toggle on">MAIN</button>
+              <button id="btn-sat-sub" class="btn-toggle off">SUB</button>
+              <button id="btn-sat-vfo-ex" class="btn-toggle">⇄</button>
+              <button id="btn-sat-vfo-eq" class="btn-toggle">=</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- TLE Panel (collapsible) -->
+        <div class="card" id="sat-tle-card" style="display:none">
           <h3>TLE 轨道数据</h3>
-          <textarea id="sat-tle" rows="3" placeholder="粘贴 3 行 TLE 数据（名称+两行轨道参数）&#10;例:&#10;ISS (ZARYA)&#10;1 25544U 98067A   24125.12345678  .00001234  00000+0  23456-4 0  9991&#10;2 25544  51.6423 123.4567 0001234  12.3456 123.4567 15.12345678123456" style="width:100%;font-family:monospace;font-size:0.75rem"></textarea>
+          <textarea id="sat-tle" rows="3" placeholder="粘贴 2 行 TLE 数据&#10;例:&#10;ISS (ZARYA)&#10;1 25544U 98067A   24125.12345678  .00001234  00000+0  23456-4 0  9991&#10;2 25544  51.6423 123.4567 0001234  12.3456 123.4567 15.12345678123456" style="width:100%;font-family:monospace;font-size:0.7rem"></textarea>
           <div style="display:flex;gap:8px;margin-top:6px">
+            <input type="text" id="sat-tle-name" placeholder="卫星名 (不含TLE时用)" style="flex:1">
             <button id="btn-sat-tle-update">更新 TLE</button>
-            <button id="btn-sat-tle-clear">清除</button>
+            <input type="text" id="sat-tle-url" placeholder="TLE URL (可选)" style="flex:2" value="https://celestrak.org/NORAD/elements/gp.php?GROUP=amateur&FORMAT=tle">
+            <button id="btn-sat-tle-fetch">从URL获取</button>
           </div>
         </div>
-        <div class="card">
+
+        <!-- Observer Panel (collapsible) -->
+        <div class="card" id="sat-obs-card" style="display:none">
           <h3>观测站位置</h3>
           <div class="row" style="gap:6px">
-            <input type="number" id="sat-observer-lat" placeholder="纬度 (如 31.23)" step="0.01" style="width:110px" value="31.23">
-            <input type="number" id="sat-observer-lon" placeholder="经度 (如 121.47)" step="0.01" style="width:110px" value="121.47">
-            <input type="number" id="sat-observer-alt" placeholder="海拔(m)" style="width:80px" value="50">
+            <input type="text" id="sat-observer-call" placeholder="呼号" style="width:80px">
+            <input type="number" id="sat-observer-lat" placeholder="纬度" step="0.0001" style="width:100px" value="31.2304">
+            <input type="number" id="sat-observer-lon" placeholder="经度" step="0.0001" style="width:100px" value="121.4737">
+            <input type="number" id="sat-observer-alt" placeholder="海拔m" step="1" style="width:70px" value="50">
             <button id="btn-sat-observer-set">设置</button>
           </div>
         </div>
+
+        <!-- Satellite Presets -->
         <div class="card">
-          <h3>常用卫星预设</h3>
           <div class="btn-group" id="sat-presets"></div>
         </div>
       </section>
