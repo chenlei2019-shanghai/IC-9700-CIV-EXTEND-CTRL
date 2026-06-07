@@ -945,38 +945,43 @@ document.addEventListener("DOMContentLoaded", () => {
 
   function startDualMonitor() {
     if (_satMonitorTimer) return;
+    _satFailCount = 0;
     document.getElementById("btn-sat-monitor").textContent = "停止监控";
     document.getElementById("btn-sat-monitor").className = "btn-toggle on";
 
     function pollCycle() {
       if (!_satMonitorTimer) return;
-      // Step 1: save MAIN, switch to SUB, read SUB
-      const savedMainHz = _satMainHz, savedMainMd = _satMainMd;
+      // Step 1: switch to SUB and read
       sendCmd("vfo", {vfo: "sub"});
-      setTimeout(() => {
+      const t1 = setTimeout(() => {
         if (!_satMonitorTimer) return;
         sendCmd("poll", {targets: ["freq", "mode"]});
-        setTimeout(() => {
+        const t2 = setTimeout(() => {
           if (!_satMonitorTimer) return;
-          // freq response already captured by handleCIV hook — currentFreq/currentMode now = SUB
-          _satSubHz = currentFreq; _satSubMd = currentMode;
-          // Switch back to MAIN
+          // freq response captured by handleCIV → currentFreq/currentMode show SUB
+          // But need to check if SUB was actually selected (no NG)
+          _satSubHz = currentFreq;
+          _satSubMd = currentMode;
           sendCmd("vfo", {vfo: "main"});
-          _satMainHz = savedMainHz; _satMainMd = savedMainMd;
           updateSatDisplay();
-          // Schedule next cycle
-          _satMonitorTimer = setTimeout(pollCycle, 1500);
-        }, 400);
+          if (_satFailCount >= 3) {
+            stopDualMonitor();
+            document.getElementById("sat-sub-freq").textContent = "SUB 不可选";
+            return;
+          }
+          _satMonitorTimer = setTimeout(pollCycle, 2000);
+        }, 450);
+        _satMonitorTimer = t2;
       }, 250);
+      _satMonitorTimer = t1;
     }
-    pollCycle();
+    _satMonitorTimer = setTimeout(pollCycle, 100);
   }
 
   function stopDualMonitor() {
     if (_satMonitorTimer) { clearTimeout(_satMonitorTimer); _satMonitorTimer = null; }
     document.getElementById("btn-sat-monitor").textContent = "开始监控";
     document.getElementById("btn-sat-monitor").className = "btn-toggle off";
-    // Ensure MAIN is selected
     sendCmd("vfo", {vfo: "main"});
   }
 
