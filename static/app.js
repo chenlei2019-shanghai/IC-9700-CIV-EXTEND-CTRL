@@ -929,6 +929,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
   // ========== Satellite Panel ==========
   let _satMainHz = 0, _satMainMd = "---", _satSubHz = 0, _satSubMd = "---";
+  let _satMonitorTimer = null;
 
   function updateSatDisplay() {
     document.getElementById("sat-main-freq").textContent = (_satMainHz ? formatSatFreq(_satMainHz) + " MHz" : "---.---.---");
@@ -942,6 +943,47 @@ document.addEventListener("DOMContentLoaded", () => {
     return parts[0] + '.' + parts[1].padStart(3,'0');
   }
 
+  function startDualMonitor() {
+    if (_satMonitorTimer) return;
+    document.getElementById("btn-sat-monitor").textContent = "停止监控";
+    document.getElementById("btn-sat-monitor").className = "btn-toggle on";
+
+    function pollCycle() {
+      if (!_satMonitorTimer) return;
+      // Step 1: save MAIN, switch to SUB, read SUB
+      const savedMainHz = _satMainHz, savedMainMd = _satMainMd;
+      sendCmd("vfo", {vfo: "sub"});
+      setTimeout(() => {
+        if (!_satMonitorTimer) return;
+        sendCmd("poll", {targets: ["freq", "mode"]});
+        setTimeout(() => {
+          if (!_satMonitorTimer) return;
+          // freq response already captured by handleCIV hook — currentFreq/currentMode now = SUB
+          _satSubHz = currentFreq; _satSubMd = currentMode;
+          // Switch back to MAIN
+          sendCmd("vfo", {vfo: "main"});
+          _satMainHz = savedMainHz; _satMainMd = savedMainMd;
+          updateSatDisplay();
+          // Schedule next cycle
+          _satMonitorTimer = setTimeout(pollCycle, 1500);
+        }, 400);
+      }, 250);
+    }
+    pollCycle();
+  }
+
+  function stopDualMonitor() {
+    if (_satMonitorTimer) { clearTimeout(_satMonitorTimer); _satMonitorTimer = null; }
+    document.getElementById("btn-sat-monitor").textContent = "开始监控";
+    document.getElementById("btn-sat-monitor").className = "btn-toggle off";
+    // Ensure MAIN is selected
+    sendCmd("vfo", {vfo: "main"});
+  }
+
+  document.getElementById("btn-sat-monitor").addEventListener("click", function() {
+    if (_satMonitorTimer) stopDualMonitor(); else startDualMonitor();
+  });
+
   document.getElementById("btn-sat-main").addEventListener("click", function() {
     sendCmd("vfo", {vfo: "main"});
     this.className = "btn-toggle on";
@@ -952,43 +994,18 @@ document.addEventListener("DOMContentLoaded", () => {
     this.className = "btn-toggle off";
     document.getElementById("btn-sat-sub").className = "btn-toggle on";
   });
-
-  document.getElementById("btn-sat-main-read").addEventListener("click", ()=>{
-    // Select MAIN, then read freq+mode
-    sendCmd("vfo", {vfo: "main"});
-    setTimeout(()=>sendCmd("poll", {targets:["freq","mode"]}), 200);
-  });
-
-  document.getElementById("btn-sat-sub-read").addEventListener("click", ()=>{
-    // Select SUB, read freq+mode, store as _satSub, then back to MAIN
-    // First store current MAIN values
-    const savedMain = _satMainHz, savedMode = _satMainMd;
-    sendCmd("vfo", {vfo: "sub"});
-    setTimeout(()=>{
-      sendCmd("poll", {targets:["freq","mode"]});
-      // After a delay, restore MAIN
-      setTimeout(()=>{
-        _satSubHz = currentFreq; _satSubMd = currentMode;
-        sendCmd("vfo", {vfo: "main"});
-        _satMainHz = savedMain; _satMainMd = savedMode;
-        updateSatDisplay();
-      }, 500);
-    }, 200);
-  });
-
   document.getElementById("btn-sat-vfo-eq").addEventListener("click", ()=>sendCmd("vfo", {vfo: "equal"}));
   document.getElementById("btn-sat-vfo-ex").addEventListener("click", ()=>{
     sendCmd("vfo", {vfo: "exchange"});
-    // Swap our stored values too
     [_satMainHz, _satSubHz] = [_satSubHz, _satMainHz];
     [_satMainMd, _satSubMd] = [_satSubMd, _satMainMd];
     updateSatDisplay();
   });
 
-  // Hook into handleCIV to capture MAIN freq/mode
-  const _origHC = handleCIV;
+  // Hook: track MAIN freq/mode from normal polling
+  const _origHC_sat = handleCIV;
   handleCIV = function(msg) {
-    _origHC(msg);
+    _origHC_sat(msg);
     if (msg.event === "frequency") {
       _satMainHz = msg.frequency;
       updateSatDisplay();
