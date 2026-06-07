@@ -863,16 +863,17 @@ document.addEventListener("DOMContentLoaded", () => {
   document.getElementById("btn-read-main").addEventListener("click", ()=>sendCmd("raw", {data:"FEFEA2E007D200FD"}));
   document.getElementById("btn-read-sub").addEventListener("click", ()=>sendCmd("raw", {data:"FEFEA2E007D201FD"}));
 
-  document.getElementById("btn-rit-on").addEventListener("click", function(){ sendCmd("set_rit", {on:true}); this.textContent="RIT ON"; this.className="btn-toggle on"; });
-  document.getElementById("btn-rit-off").addEventListener("click", function(){ sendCmd("set_rit", {on:false}); this.textContent="RIT OFF"; this.className="btn-toggle off"; });
-  document.getElementById("btn-rit-set").addEventListener("click", ()=>{
+  const _safe = (id, fn) => { const el = document.getElementById(id); if (el) el.addEventListener("click", fn); };
+
+  _safe("btn-rit-on", function(){ sendCmd("set_rit", {on:true}); this.textContent="RIT ON"; this.className="btn-toggle on"; });
+  _safe("btn-rit-set", ()=>{
     const f = parseInt(document.getElementById("input-rit").value);
     const dir = document.getElementById("sel-rit-dir").value;
     sendCmd("set_rit_freq", {freq: f, direction: dir});
   });
 
   document.getElementById("btn-xfc-on").addEventListener("click", function(){ sendCmd("set_xfc", {on:true}); this.textContent="XFC ON"; this.className="btn-toggle on"; });
-  document.getElementById("btn-xfc-off").addEventListener("click", function(){ sendCmd("set_xfc", {on:false}); this.textContent="XFC OFF"; this.className="btn-toggle off"; });
+  _safe("btn-xfc-off", function(){ sendCmd("set_xfc", {on:false}); this.textContent="XFC OFF"; this.className="btn-toggle off"; });
 
   document.getElementById("btn-tx-pwr-set-on").addEventListener("click", function(){
     const on = this.textContent === "TX输出 OFF";
