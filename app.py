@@ -43,7 +43,6 @@ from fastapi.responses import FileResponse
 
 from civ import CIVSerial, CIVController, bcd_to_freq, MODES, PREAMBLE, END_CODE
 from lan import LanCIVTransport
-from sat import set_tle, set_observer, calc_doppler, get_presets, get_tle_names, SATELLITE_PRESETS
 
 # Global state
 current_transport = CIVSerial()
@@ -333,67 +332,6 @@ async def disconnect_port():
     except Exception:
         pass
     return {"success": True, "connected": False}
-
-
-# ===== Satellite Tracking API =====
-
-@app.post("/api/sat/tle")
-async def sat_tle(name: str, line1: str, line2: str):
-    try:
-        ok = set_tle(name, line1, line2)
-        return {"success": ok, "names": get_tle_names()}
-    except Exception as e:
-        return {"success": False, "error": str(e)}
-
-
-@app.post("/api/sat/observer")
-async def sat_observer(lat: float, lon: float, alt_m: float = 50):
-    set_observer(lat, lon, alt_m)
-    return {"success": True, "lat": lat, "lon": lon, "alt_m": alt_m}
-
-
-@app.get("/api/sat/doppler")
-async def sat_doppler(name: str = ""):
-    names = get_tle_names()
-    if not names:
-        return {"error": "no TLE data"}
-    sat_name = name or names[0]
-    result = calc_doppler(sat_name)
-    if result is None:
-        return {"error": f"calc failed for {sat_name}"}
-    result["available"] = names
-    return result
-
-
-@app.get("/api/sat/presets")
-async def sat_presets():
-    has_tle = get_tle_names()
-    return {"presets": SATELLITE_PRESETS, "active_tle": has_tle}
-
-
-@app.post("/api/sat/tle_fetch")
-async def sat_tle_fetch(url: str = ""):
-    """Fetch TLE data from a URL and load all satellites found."""
-    import urllib.request
-    try:
-        resp = urllib.request.urlopen(url, timeout=15)
-        text = resp.read().decode("utf-8", errors="replace")
-        lines = text.strip().split("\n")
-        count = 0
-        i = 0
-        while i + 2 < len(lines):
-            name = lines[i].strip()
-            l1 = lines[i + 1].strip() if i + 1 < len(lines) else ""
-            l2 = lines[i + 2].strip() if i + 2 < len(lines) else ""
-            if l1.startswith("1 ") and l2.startswith("2 "):
-                set_tle(name, l1, l2)
-                count += 1
-                i += 3
-            else:
-                i += 1
-        return {"success": True, "count": count, "names": get_tle_names()}
-    except Exception as e:
-        return {"success": False, "error": str(e)}
 
 
 @app.websocket("/ws")

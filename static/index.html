@@ -599,94 +599,35 @@
         <div class="card"><h3>DTMF / NB设置 / 功率限制</h3><div id="dtmf-container"></div></div>
       </section>
 
-      <!-- SATELLITE DASHBOARD -->
+      <!-- SATELLITE -->
       <section class="panel-section" id="panel-sat">
-        <!-- Row 1: Track & Radio -->
-        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:8px">
-
-          <!-- TRACK PANEL -->
-          <div class="card" style="flex:1;min-width:280px">
-            <h3>TRACK</h3>
-            <div style="display:flex;align-items:center;gap:6px;margin-bottom:6px">
-              <input type="text" id="sat-search" placeholder="卫星名称..." style="flex:1" list="sat-datalist">
-              <datalist id="sat-datalist"></datalist>
-              <button id="btn-sat-search" style="padding:4px 8px">🔍</button>
-              <select id="sat-select" style="max-width:100px"></select>
-            </div>
-            <div id="sat-track-info">
-              <table style="width:100%;font-size:0.85rem;border-collapse:collapse">
-                <tr><td style="color:#94a3b8;width:55px">NAME</td><td style="color:#60a5fa;font-weight:bold" id="sat-track-name">---</td></tr>
-                <tr><td style="color:#94a3b8">AZ</td><td id="sat-track-az">---</td></tr>
-                <tr><td style="color:#94a3b8">EL</td><td id="sat-track-el">---</td></tr>
-                <tr><td style="color:#94a3b8">RANGE</td><td id="sat-track-range">---</td></tr>
-                <tr><td style="color:#94a3b8">RATE</td><td id="sat-track-rate">---</td></tr>
-              </table>
-            </div>
-            <div class="btn-group" style="margin-top:8px;gap:4px">
-              <button id="btn-sat-doppler" class="btn-toggle on">DOPPLER</button>
-              <button id="btn-sat-apply" class="btn-primary">📡 APPLY</button>
-            </div>
-          </div>
-
-          <!-- RADIO PANEL -->
-          <div class="card" style="flex:2;min-width:380px">
-            <h3 id="sat-radio-title">RADIO — <span id="sat-radio-name">---</span></h3>
-            <div class="sat-display">
-              <div class="sat-vfo" id="sat-main-display">
-                <div class="sat-band-label">DOWN ▼ <span id="sat-down-nom" style="color:#94a3b8;font-weight:normal"></span></div>
-                <div class="sat-freq" id="sat-main-freq">---.---.---</div>
-                <div class="sat-mode" id="sat-main-mode">FM</div>
-                <div class="sat-shift" id="sat-rx-shift"></div>
-              </div>
-              <div class="sat-divider"></div>
-              <div class="sat-vfo" id="sat-sub-display">
-                <div class="sat-band-label">UP ▲ <span id="sat-up-nom" style="color:#94a3b8;font-weight:normal"></span></div>
-                <div class="sat-freq" id="sat-sub-freq">---.---.---</div>
-                <div class="sat-mode" id="sat-sub-mode">FM</div>
-                <div class="sat-shift" id="sat-tx-shift"></div>
-              </div>
-            </div>
-            <div style="display:flex;gap:4px;margin-top:8px;flex-wrap:wrap;align-items:center">
-              <button id="btn-sat-main" class="btn-toggle on">MAIN</button>
-              <button id="btn-sat-sub" class="btn-toggle off">SUB</button>
-              <button id="btn-sat-vfo-ex" class="btn-toggle">⇄ SWAP</button>
-              <button id="btn-sat-vfo-eq" class="btn-toggle">= EQ</button>
-              <span style="color:#94a3b8;font-size:0.75rem;margin-left:auto" id="sat-update-time"></span>
-            </div>
-          </div>
-        </div>
-
-        <!-- Row 2: Config panels -->
-        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:8px">
-          <!-- TLE Panel -->
-          <div class="card" style="flex:1;min-width:280px">
-            <h3>TLE / FREQ DB</h3>
-            <textarea id="sat-tle" rows="3" placeholder="粘贴 2 行 TLE..." style="width:100%;font-family:monospace;font-size:0.7rem"></textarea>
-            <div style="display:flex;gap:6px;margin-top:6px;flex-wrap:wrap">
-              <input type="text" id="sat-tle-name" placeholder="卫星名" style="width:80px">
-              <button id="btn-sat-tle-update">更新</button>
-              <input type="text" id="sat-tle-url" placeholder="TLE URL" style="flex:1;min-width:180px" value="https://celestrak.org/NORAD/elements/gp.php?GROUP=amateur&FORMAT=tle">
-              <button id="btn-sat-tle-fetch">获取</button>
-            </div>
-          </div>
-
-          <!-- Location Panel -->
-          <div class="card" style="flex:1;min-width:280px">
-            <h3>LOCATION</h3>
-            <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center">
-              <input type="text" id="sat-observer-call" placeholder="呼号" style="width:60px">
-              <input type="number" id="sat-observer-lat" placeholder="纬度" step="0.0001" style="width:90px" value="31.2304">
-              <input type="number" id="sat-observer-lon" placeholder="经度" step="0.0001" style="width:90px" value="121.4737">
-              <input type="number" id="sat-observer-alt" placeholder="海拔m" style="width:60px" value="50">
-              <button id="btn-sat-observer-set">设置</button>
-            </div>
-          </div>
-        </div>
-
-        <!-- Row 3: Satellite Presets -->
         <div class="card">
-          <h3>卫星选择</h3>
-          <div class="btn-group" id="sat-presets" style="gap:4px"></div>
+          <h3>🛰️ 卫星 VFO 控制</h3>
+          <p style="color:#94a3b8;font-size:0.8rem;margin-bottom:10px">
+            使用 HRD/Wfview 控制频率和 PTT，此页面用于管理 MAIN/SUB 状态。<br>
+            建议 <b>不要开启电台内置卫星模式</b>，直接使用 VFO 模式：MAIN=RX下行, SUB=TX上行。
+          </p>
+          <div class="sat-display">
+            <div class="sat-vfo" id="sat-main-display">
+              <div class="sat-band-label">MAIN — RX 下行 ▼</div>
+              <div class="sat-freq" id="sat-main-freq">---.---.---</div>
+              <div class="sat-mode" id="sat-main-mode">---</div>
+            </div>
+            <div class="sat-divider"></div>
+            <div class="sat-vfo" id="sat-sub-display">
+              <div class="sat-band-label">SUB — TX 上行 ▲</div>
+              <div class="sat-freq" id="sat-sub-freq">---.---.---</div>
+              <div class="sat-mode" id="sat-sub-mode">---</div>
+            </div>
+          </div>
+          <div style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap">
+            <button id="btn-sat-main" class="btn-toggle on">选 MAIN</button>
+            <button id="btn-sat-sub" class="btn-toggle off">选 SUB</button>
+            <button id="btn-sat-main-read" class="btn-primary">读 MAIN</button>
+            <button id="btn-sat-sub-read" class="btn-primary">读 SUB</button>
+            <button id="btn-sat-vfo-ex" class="btn-toggle">A ↔ B</button>
+            <button id="btn-sat-vfo-eq" class="btn-toggle">A = B</button>
+          </div>
         </div>
       </section>
 
