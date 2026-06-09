@@ -414,6 +414,15 @@ async def websocket_endpoint(websocket: WebSocket):
                 elif action == "memory":
                     controller.select_memory(int(msg["channel"]))
 
+                elif action == "memory_write":
+                    controller.memory_write()
+
+                elif action == "memory_copy_vfo":
+                    controller.memory_copy_vfo()
+
+                elif action == "memory_clear":
+                    controller.memory_clear()
+
                 elif action == "scan":
                     scan_type = msg.get("type", "cancel")
                     mapping = {
@@ -532,7 +541,7 @@ async def websocket_endpoint(websocket: WebSocket):
                             controller.read_frequency()
                             controller.read_mode()
                         elif t == "sat_sub_freqs":
-                            controller.ser.send(0x07, data=bytes([0xD2, 0x01]))  # read sub band
+                            controller.read_band_selection(0x01)
                         elif t == "split":
                             controller.read_split()
                         elif t == "tuning_step":
@@ -544,7 +553,7 @@ async def websocket_endpoint(websocket: WebSocket):
                         elif t == "tx_power_setting":
                             controller.read_tx_power_setting()
                         elif t == "rit":
-                            controller.ser.send(0x21, data=bytes([0x01]))
+                            controller.read_rit()
                         elif t.startswith("level_"):
                             controller.read_level(int(t.split("_")[1], 16))
                         elif t.startswith("func_"):

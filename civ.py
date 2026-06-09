@@ -290,6 +290,9 @@ class CIVController:
     def read_band_selection(self, band: int = 0x00):
         return self.ser.send(0x07, data=bytes([0xD2, band]))
 
+    def read_rit(self):
+        return self.ser.send(0x21, data=bytes([0x01]))
+
     # --- Memory ---
     def select_memory(self, channel: int):
         ch_high = (channel >> 8) & 0xFF

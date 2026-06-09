@@ -163,10 +163,9 @@ function updateRITButton(on) {
 
 function updateExtControl(item, value) {
   const itemHex = item.toString(16).padStart(4, '0').toLowerCase();
+  const v = Array.isArray(value) ? (value.length >= 2 ? (value[0] << 8) | value[1] : (value.length > 0 ? value[0] : 0)) : value;
   const el = document.getElementById("ext-" + itemHex);
   if (el) {
-    // value from backend: either integer (BCD decoded) or byte list
-    const v = Array.isArray(value) ? (value.length >= 2 ? (value[0] << 8) | value[1] : (value.length > 0 ? value[0] : 0)) : value;
     if (el.tagName === "BUTTON") {
       el.textContent = v ? "ON" : "OFF";
       el.className = "btn-toggle " + (v ? "on" : "off");
@@ -180,8 +179,7 @@ function updateExtControl(item, value) {
   // Try slider (1A)
   const sliderId = "exts-" + itemHex;
   const s = document.getElementById(sliderId);
-  if (s && value.length > 0) {
-    const v = Array.isArray(value) ? (value.length >= 2 ? (value[0] << 8) | value[1] : value[0]) : value;
+  if (s) {
     s.value = v;
     const n = document.getElementById(sliderId + "-num");
     if (n) {
@@ -865,7 +863,8 @@ document.addEventListener("DOMContentLoaded", () => {
 
   const _safe = (id, fn) => { const el = document.getElementById(id); if (el) el.addEventListener("click", fn); };
 
-  _safe("btn-rit-on", function(){ sendCmd("set_rit", {on:true}); this.textContent="RIT ON"; this.className="btn-toggle on"; });
+  _safe("btn-rit-on", function(){ sendCmd("set_rit", {on:true}); updateRITButton(true); });
+  _safe("btn-rit-off", function(){ sendCmd("set_rit", {on:false}); updateRITButton(false); });
   _safe("btn-rit-set", ()=>{
     const f = parseInt(document.getElementById("input-rit").value);
     const dir = document.getElementById("sel-rit-dir").value;
@@ -876,10 +875,9 @@ document.addEventListener("DOMContentLoaded", () => {
   _safe("btn-xfc-off", function(){ sendCmd("set_xfc", {on:false}); this.textContent="XFC OFF"; this.className="btn-toggle off"; });
 
   document.getElementById("btn-tx-pwr-set-on").addEventListener("click", function(){
-    const on = this.textContent === "TX输出 OFF";
-    sendCmd("set_tx_power_setting", {on: !on});
-    this.textContent = on ? "TX输出 ON" : "TX输出 OFF";
-    this.className = "btn-toggle " + (on ? "on" : "off");
+    const next = this.textContent === "TX输出 OFF";
+    sendCmd("set_tx_power_setting", {on: next});
+    updateTXPowerButton(next ? 1 : 0);
   });
   document.getElementById("btn-read-tx-pwr").addEventListener("click", ()=>sendCmd("read_tx_power_setting"));
 
@@ -996,8 +994,8 @@ document.addEventListener("DOMContentLoaded", () => {
   });
   document.getElementById("btn-sat-sub").addEventListener("click", function() {
     sendCmd("vfo", {vfo: "sub"});
-    this.className = "btn-toggle off";
-    document.getElementById("btn-sat-sub").className = "btn-toggle on";
+    document.getElementById("btn-sat-main").className = "btn-toggle off";
+    this.className = "btn-toggle on";
   });
   document.getElementById("btn-sat-vfo-eq").addEventListener("click", ()=>sendCmd("vfo", {vfo: "equal"}));
   document.getElementById("btn-sat-vfo-ex").addEventListener("click", ()=>{
