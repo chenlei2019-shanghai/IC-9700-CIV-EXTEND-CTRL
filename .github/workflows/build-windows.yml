@@ -27,20 +27,9 @@ jobs:
         run: |
           pyinstaller --onefile --name ic9700-ctrl --add-data "static;static" --hidden-import uvicorn --hidden-import uvicorn.loops.auto --hidden-import uvicorn.protocols.http.auto --hidden-import fastapi --hidden-import serial --hidden-import serial.tools.list_ports --collect-all uvicorn --console --noconfirm --clean app.py
 
-      - name: Build GPredict GUI executable
-        run: |
-          pyinstaller --onefile --name gpredict-civ-gui --hidden-import serial --hidden-import serial.tools.list_ports --windowed --noconfirm --clean gpredict_civ_gui.py
-
       - name: Upload web controller executable
         uses: actions/upload-artifact@v4
         with:
           name: ic9700-ctrl-windows
           path: dist/ic9700-ctrl.exe
-          if-no-files-found: error
-
-      - name: Upload GPredict GUI executable
-        uses: actions/upload-artifact@v4
-        with:
-          name: gpredict-civ-gui-windows
-          path: dist/gpredict-civ-gui.exe
           if-no-files-found: error
