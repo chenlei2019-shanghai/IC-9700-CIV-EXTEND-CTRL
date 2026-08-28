@@ -1,0 +1,1284 @@
+--- Page 1 ---
+Introduction
+The CSN S.A.T. is a novel and completely self contained device used to predict and track satellite passes while simultaneously
+controlling an antenna rotator and tuning a transceiver. Once connected to mobile device or computer through it's built it WiFi,
+all control is performed through any web browser.
+2026/6/17 11:54
+igatemini.com/sat/manual3?p=PDF
+www.igatemini.com/sat/manual3?p=PDF
+1/48
+
+--- Page 2 ---
+Get Familiar
+LCD
+The built in LCD displays information depending on the state of the S.A.T. For example, the IP address, serial number and
+firmware version are displayed when the S.A.T. is idle. When actively tracking, the satellite name, azimuth, elevation, range and
+range rate and AOS/LOS is shown. Other status message are also available such as during TLE and firmware updates.
+Idle LCD
+Tracking LCD
+PORTS
+The ports for connecting power, the rotator and your radio are location along to the top of the S.A.T. Use the guide to identify the
+various connections.
+S.A.T. Back Panel
+USB Power
+We recommend using a high quality USB wall charger to power your S.A.T. We have tested the following USB power adapter
+and found it to work well with the S.A.T. Get it on Amazon USB Power Supply
+The S.A.T. does not need to be powered off, however if you wish to power it off we recommend using a USB cable with a built
+in switch like this one: USB Power Switch
+2026/6/17 11:54
+igatemini.com/sat/manual3?p=PDF
+www.igatemini.com/sat/manual3?p=PDF
+2/48
+
+--- Page 3 ---
+RADIO CI-V CONNECTION
+The RIG CONTROL port on your S.A.T. plugs into your radio with the provided Tip-Ring-Sleve cable. Refer to the images on the
+right to find the CI-V or Remote jack on your radio. The correct jack has been highlighted in violet.
+Icom IC-9700
+Icom IC-9100
+2026/6/17 11:54
+igatemini.com/sat/manual3?p=PDF
+www.igatemini.com/sat/manual3?p=PDF
+3/48
+
+--- Page 4 ---
+ROTATOR CONNECTION
+Plug the Mini-DIN connector into the S.A.T. and the full size DIN connector to the back of the rotator control box. Refer to the
+image for the correct port.
+Notice
+Do not connect the rotator until you read the calibration procedure
+Extension Cable
+If the supplied DIN cable is too short for your needs, we have tested the following 8 Pin DIN extension cable: 3M DIN Extension
+Cable
+Yaesu G5500/G5600/G5400
+2026/6/17 11:54
+igatemini.com/sat/manual3?p=PDF
+www.igatemini.com/sat/manual3?p=PDF
+4/48
+
+--- Page 5 ---
+Quick Start
+Apply Power
+Attach USB
+Using the provided Micro-USB cable, attached your S.A.T. to a high quality USB power adapter. The S.A.T. will immediately turn
+on when power is applied.
+USB Power
+We recommend using a high quality USB wall charger to power your S.A.T. We have tested the following USB power adapter
+and found it to work well with the S.A.T. Get it on Amazon USB Power Supply
+The S.A.T. does not need to be powered off, however if you wish to power it off we recommend using a USB cable with a built
+in switch like this one: USB Power Switch
+Connect to the S.A.T.
+Using your mobile device or WiFi enabled computer, search for available WiFi networks. Find the Access Point with the name
+CSN_SAT_XXXX (Where XXXX is the serial number of the S.A.T.).
+Connect your mobile device to that access point. Some mobile devices will complain that this access point will not provide
+internet access. This is normal and you should allow the connection if prompted.
+Open the Dashboard
+Using your mobile device's web browser, navigate to the IP address displayed on the LCD screen. For example: http://192.168.4.1
+The S.A.T. dashboard will open on your device.
+Connect your S.A.T. to Your WiFi Network
+Click the NETWORK button at the bottom of the dashboard.
+The S.A.T. will scan for available 2.4GHz networks and will display them in the dropdown box. If needed, click the REFRESH
+button to refresh the list.
+Choose a network from the list and enter your WiFi password. Click CONNECT.
+The S.A.T. will restart and attempt to connect to the selected WiFi network. Look at the LCD screen on the S.A.T. to see the IP
+address assigned and then connect to it using any browser on the same network.
+Next Steps
+The next step is to configure your S.A.T. Jump over to the configuration section of the manual.
+If you did not purchase your S.A.T. directly from us, please register your device here: Register
+Follow us on social media:
+Warranty
+2026/6/17 11:54
+igatemini.com/sat/manual3?p=PDF
+www.igatemini.com/sat/manual3?p=PDF
+5/48
+
+--- Page 6 ---
+CSN Technologies Inc. provides a 3 Month LIMITED WARRANTY against manufacturing defects in materials and workmanship
+to the original purchaser of a new S.A.T. purchased from CSN Technologies Inc directly or from an authorized dealer. The
+warranty begins on the date of purchase by the customer.
+2026/6/17 11:54
+igatemini.com/sat/manual3?p=PDF
+www.igatemini.com/sat/manual3?p=PDF
+6/48
+
+--- Page 7 ---
+Network Setup
+Access Point
+During startup the S.A.T. will try to connect to a WiFi network if one has been configured. If it cannot connect to a WiFi network
+then it will beep twice and start its internal WiFi Access Point. In this case the LCD will display an IP address of 192.168.4.1.
+Access Point LCD
+Connect to the S.A.T. Access Point
+Using your mobile device*, search for available WiFi network. If the S.A.T. is in Access Point mode then an access point with the
+name CSN_SAT_XXXX will be available. The XXXX is the serial number of the S.A.T. (older firmware versions had an access point
+name of Rotator_XXXX).
+Connect your mobile device to that access point. (Some devices will complain that this access point will not provide internet
+access. This is normal and you should allow the connection if prompted.)
+Access Point List
+Any device that supports Wifi and has a web browser will work such as cell phones, tablets, computers and laptops.
+Access Point List on Mobile Device
+2026/6/17 11:54
+igatemini.com/sat/manual3?p=PDF
+www.igatemini.com/sat/manual3?p=PDF
+7/48
+
+--- Page 8 ---
+Open the Dashboard
+Using your mobile device's web browser, navigate to the IP address displayed on the LCD screen. For example: http://192.168.4.1
+The S.A.T. dashboard will open on your device.
+S.A.T Interface
+Now press the NETWORK  button at the bottom of the interface to open the network settings panel. Jump to the Network
+section for the next steps.
+2026/6/17 11:54
+igatemini.com/sat/manual3?p=PDF
+www.igatemini.com/sat/manual3?p=PDF
+8/48
+
+--- Page 9 ---
+Track Panel
+While tracking, this panel displays essential satellite information and current antenna position information. Current wind speed
+and direction is also displayed for your location.
+Entering a satellite name or catalog number into the Name box and clicking Search will start tracking the entered satellite, if it's
+found in the loaded TLE file.
+Fields
+NAME
+Manually enter a satellite name or catalog number here and click Search to start tracking.
+SAT POS
+The current azimuth and elevation of the tracked satellite.
+ANT POS
+The current azimuth and elevation of the antenna rotator.
+RANGE
+The straight line distance to the tracked satellite.
+AOS
+The AOS time of the tracked satellite.
+LOS
+The LOS time of the tracked satellite.
+MAX EL
+The maximum elevation of the tracked satellite.
+TIME
+The current time.
+WIND
+The current wind speed and direction for your location if you have entered your OpenWeather API key in the
+Location settings.
+LAST MSG The last message received from the S.A.T.
+GPS STAT
+The current GPS status.
+Buttons
+NEXT PASSES
+Predict and display current and future passes.
+VIEW ALL
+View the entire set of satellites stored in the S.A.T.
+CONTINUOUS Continue tracking the selected satellite even after LOS. A green button indicates Continuous mode is active. A
+red button means Continous mode is not active.
+SCHEDULE
+Enable/Disable satellite schedule mode. See SCHEDULE section below for details.
+READY
+Move the antenna to the Ready position
+PARK
+Move the antenna to the Park position
+ANT ENABLE
+Enable or disable the rotator. Green to enable the rotator and red to disable. When disabled, no movement
+commands will be sent to the rotator.
+STOP
+Stop all movement and tracking
+Quick Links
+2026/6/17 11:54
+igatemini.com/sat/manual3?p=PDF
+www.igatemini.com/sat/manual3?p=PDF
+9/48
+
+--- Page 10 ---
+The Satellite Status link will open the Amsat Satellite Status Page in a new window.
+The SatNOGS link will open the SatNOGS map for the currently tracked satellite.
+The OrbTrack link will open the OrbTrack map for the currently tracked satellite.
+2026/6/17 11:54
+igatemini.com/sat/manual3?p=PDF
+www.igatemini.com/sat/manual3?p=PDF
+10/48
+
+--- Page 11 ---
+Maps and Charts
+Worldmap
+This is a full color map display. With this style of display you can see the satellite location above the Earth and it current track. In
+the lower left is a graphical display of the current antenna position.
+In the bottom right of the map is a little icon that will toggle the ground track display on and off when clicked.
+Track Panel
+Polar Chart
+The polar view takes some getting used to but contains a lot of useful information. The outer ring is horizon and the center is
+directly overhead. North is towards the top. This display shows the satellite track across the sky as well as the AOS and LOS
+azimuth and current antenna position. The color of the track indicates if the satellite is in sunlight or shadow - yellow for
+sunlight and green for shadow. The antenna indicator changes color if the rotator is in flipped/reverse mode - purple for reverse
+and orange for normal. You can click and drag in that view to rotate the North orientation.
+Track Panel
+Ground View
+This view simulates the observer standing on the ground and looking towards the satellite's current postion. A compass is
+displayed along the bottom to indicate direction. With this view you can follow a satellite as is rises above the horizon and
+travels across the sky until it sets. The track across the sky is displayed as well as the current antenna position. The color of the
+track indicates if the satellite is in sunlight or shadow - yellow for sunlight and green for shadow.
+Track Panel
+2026/6/17 11:54
+igatemini.com/sat/manual3?p=PDF
+www.igatemini.com/sat/manual3?p=PDF
+11/48
+
+--- Page 12 ---
+2026/6/17 11:54
+igatemini.com/sat/manual3?p=PDF
+www.igatemini.com/sat/manual3?p=PDF
+12/48
+
+--- Page 13 ---
+Radio Panel
+Top Row Buttons
+ENABLE
+Enable or disable rig control. A Green button means the rig is enabled and will be controlled. If red then it will
+not.
+LOCK VFO
+The S.A.T. keeps the uplink frequency in step with the downlink as you make changes with the VFO knob.
+Disabling this lets you tune the downlink without affecting the uplink. (Generally not needed if your radio has
+an RIT control).
+CENTER
+Sets the frequencies back to the transponder center frequencies. Basically resets any changes you have made
+by turning the dial.
+ADD
+Allows you to add a transponder that is not listed.
+QUICK CW
+Sets both VFOs to CW mode. Click to enable, click again to return modes to previous settings.
+SDR D/L
+SDR Downlink control. When green the SDR controls the downlink frequency. When red the radio controls the
+downlink.
+Report Status Choose and option to report the satellite status to other users.
+Second Row Controls
+POWER Sets the radio power.
+TBW
+Sets the transmit bandwidth.
+TX PL
+Sets the TX PL tone.
+MAIN
+Sets the MAIN band mode.
+SUB
+Sets the SUB band mode.
+Active Transponder
+The active transponder frequency and doppler shift are displayed here.
+To the right is a bandwidth indicator for transponders that have a BW setting. As you tune the VFO knob the line move left and
+right to indicate where you are tuned in the band. If you tune outside the BW the indicator turns red.
+Transponder List
+The available transponders for the currently tracked satellite are displayed in this area.
+The currently selected transponder is highlighted in green. Click on a name to select the active transponder.
+To edit a transponder's details, click on the numeric portion of the transponder entry. A transponder edit panel will open.
+2026/6/17 11:54
+igatemini.com/sat/manual3?p=PDF
+www.igatemini.com/sat/manual3?p=PDF
+13/48
+
+--- Page 14 ---
+Option Buttons
+CONTROL
+Manually control the rotator.
+TLE/FREQ DB Open TLE and transponder settings
+ROTATOR
+Open Rotator settings.
+NETWORK
+Open Network & WiFi settings.
+RADIO
+Open Radio settings.
+LOCATION
+Open Location, Grid square, Callsign, Time settings.
+CALL LOG
+Open the QSO log.
+PASS LOG
+Open the satellite pass log.
+WINDOW
+Open a secondary windows.
+SCHEDULE
+Open satellite schedule window.
+ABOUT
+Open About window. Update Firmware and factory reset.
+2026/6/17 11:54
+igatemini.com/sat/manual3?p=PDF
+www.igatemini.com/sat/manual3?p=PDF
+14/48
+
+--- Page 15 ---
+Manual Control Panel
+Control Panel
+The control panel lets you manually point your antenna to a given direction.
+Enter a grid square into POINT TO LOCATION field the have the AZ automatically calculated for you. Elevation is not changed
+when entering a grid square.
+GO
+Move to the entered position.
+READY Move the antenna to the Ready position.
+PARK
+Move the antenna to the Park position.
+STOP
+Stop all motion.
+CLOSE Close the manual control panel.
+UP
+Move elevation up.
+DOWN Move elevation down.
+LEFT
+Move azimuth left (counter clockwise).
+RIGHT Move azimuth right (clockwise).
+Pan Section
+On the right side of the panel are four pan buttons. Press and hold the buttons to move the appropriate axis. These work similar
+to the physical movement button on your rotator control box. *Pan buttons may not work on mobile devices.
+UP
+Move elevation up.
+DOWN Move elevation down.
+LEFT
+Move azimuth left (counter clockwise).
+RIGHT Move azimuth right (clockwise).
+2026/6/17 11:54
+igatemini.com/sat/manual3?p=PDF
+www.igatemini.com/sat/manual3?p=PDF
+15/48
+
+--- Page 16 ---
+Favorites
+It is highly recommended that you select a number of satellites as your "favorites". This will increase decrease clutter when
+viewing predicted passes and will improve the responsiveness of the S.A.T.
+To choose your favorites, click the VIEW ALL  button. You will be presented with a list of all the satellites contained in the
+currently loaded TLE.
+Each satellite name has a checkbox next to it. Choose favorites by checking those that you want. When completed, press the
+SAVE FAVORITES  at the bottom. A popup box will appear confirming your action.
+SELECT ALL
+Check all satellites in the list. Note that if you no favorites selected then the S.A.T. acts as if all
+satellites are selected.
+CLEAR SELECTION
+Uncheck all satellites.
+REPORT FOR SELECTED Print a pass resport suitable for printing for all selected satellites.
+SAVE FAVORITES
+Save the currently selected satellites as your favorites.
+CLOSE
+Close the VIEW ALL panel.
+2026/6/17 11:54
+igatemini.com/sat/manual3?p=PDF
+www.igatemini.com/sat/manual3?p=PDF
+16/48
+
+--- Page 17 ---
+Satellite Status
+The S.A.T. includes a satellite status reporting feature that is both easy to use and informative.
+In the VIEW ALL and NEXT PASSES screen you will see a colored diamond next to satellites where we have received status
+reports.
+The color indicates the last known satellite status:
+♦ - Satellite is active and was heard.
+♦ - Only telemetry or a beacon was heard
+♦ - The satellite was not heard.
+Hovering your mouse over the diamond will popup a box giving you the details about the last report such as when it was
+reported and what trasponder it was.
+Clicking on the diamond will open a new browser page showing the history of reports for that satellite.
+You can easily submit your own report. While tracking a satellite use the "Report Status" dropdown box located in the radio
+panel (see image above).
+Simply choose one of the three status options from the choices and your report is immediatly submitted for all others to see.
+We encourage you to submit reports often! All S.A.T. users benefit from the community submitting frequent and up-to-date
+reports.
+If you make a mistake in your report, for example choosing "Active" when you meant to choose "Not Heard" - simply choose a
+new option and your previous selected will be replace with your new choice.
+2026/6/17 11:54
+igatemini.com/sat/manual3?p=PDF
+www.igatemini.com/sat/manual3?p=PDF
+17/48
+
+--- Page 18 ---
+Tracking
+Before tracking a satellite, be sure to configure your Location, Rotator and Radio using the instructions in this manual. Also make
+sure your TLEs are up to date for best results.
+There are a few ways to start tracking a satellite. The quickest is to type the name or catalog number into the search field and
+click SEARCH . The search field is not case sensitive and if you use a name it must match the name as it is in the TLE file. You can
+enter a partial name, for example entering "IS" would find and track "ISS". If you enter a partial name then the first matching
+satellite will be selected. Entering "AO-9" might find "AO-91" or "AO-92". If you know the catalog number then that is the most
+accurate way to search.
+To track the Moon or Sun, simply type MOON (or SUN) into the seach box and click SEARCH
+Another way is to click the VIEW ALL  button. This will display a list off all the satellites in the loaded TLE file. Simply click a
+satellite name to start tracking.
+Click the little report icon next to the satellite name in the 'View All' page to generate a printable pass prediction report for that
+individual satellite. The REPORT FOR SELECTED button at the bottom of the page will generate a pass prediction report for all
+satellites that have been checked. The report will be generated in chronological order.
+Finally, clicking NEXT PASSES  will display a list of satellites that are currently up in the sky and those that are coming up next.
+Those that are green are already up and the orange are currently below the horizon but they are the next to rise. The brightness
+of the boxes indicates the relative maximum elevation, brighter being higher. Satellites that will not rise above the MISS PASS
+setting in the rotator page will not be displayed. Click a satellite name to start tracking.
+CSN Technologies
+CSN S.A.T. TLE update Made simple
+CSN S.A.T. TLE update Made simple
+前往平台观看：
+2026/6/17 11:54
+igatemini.com/sat/manual3?p=PDF
+www.igatemini.com/sat/manual3?p=PDF
+18/48
+
+--- Page 19 ---
+Using Radio
+When tracking starts the first transponder in the list is automatically selected. Your radios VFOs and modes will be set up and the
+center frequencies will be selected, adjusted for doppler. Tuning will start. The calculated doppler offset and current frequency
+will be display in the RADIO area on the page.
+Click on a transponder name to switch to it - the radio bands and modes will be automatically set for the selected transponder
+and frequency updates will start. If a frequency is not correct in the transponder list you can click on it and change it. The
+frequency you enter will be the new center frequency that the doppler shift is calculated from. The setting is not saved however
+you can contact us and we will make the necessary adjustment in the transponder database.
+If a mode is not selected correctly you can chage it using the drop down menus. Again, contact us and we'll make corrections in
+the database.
+The POWER and TX PL selections let you change the transmit power and transmit PL tone respectivly. Note that not all radios
+support changing the power levels with remote commands.
+Satellite frequencies drift. This can be caused by thermal issues on the spacecraft, from satellite age and/or other factors. So
+some adjustment may be required by operators on on the ground. The easiest way is to use the RIT control on radios that have it
+(Icom 9100 & 9700). You can use the RIT control to fine tune the downlink frequency.
+The other way is to simply move the tuning dial on the radio but in this case you must be aware of the LOCK VFO option on the
+S.A.T.
+With the VFOs locked, any change you make to the downlink will also be reflected in the uplink frequency. For example, if you
+tune the downlink down by 5kHz, the uplink will tune up by 5kHz. Unlocking the VFO's prevents this and you are free to change
+the downlink without affecting the uplink.
+Keep in mind some features of the radio may be difficult to manipulate while frequency updates are being sent by the S.A.T.,
+especially if the update interval is fast (less than 1 sec). Clicking the ENABLE button will stop the updates and the button will turn
+red. You are now free to adjust the radio and when ready you click ENABLE to start the updates again.
+ENABLE
+Enable or Disable radio updates. Green is enabled, red is disabled. When disabled you can adjust the radio
+without the frequency updates interfering.
+LOCK VFO
+When the VFOs are locked (Green), any change you make to the downlink will also be reflected in the uplink
+frequency. Unlocking the VFO's prevents this and you are free to change the downlink without affecting the
+uplink.
+CENTER
+Press to reset the radio to the center frequency of the transponder.
+ADD
+Add a new transponder to the currently tracked satellite.
+QUICK CW
+Switch both VFOs to CW mode. The button will turn green when active. Press again to put both VFOs back to
+their previous modes.
+SDR D/L
+Choose if the radio or the SDR is used to control the downlink frequency. (see the SDR section for more
+information)
+Report Status Report to the CSN server the current status of the satellite. See the VIEW ALL section for for more information.
+PWR
+Choose the transmit power level. Not all radios support this feature.
+TBW
+Choose the transmit bandwidth. Not all radios support this feature.
+TX PL
+Select transmit PL tone for FM satellites.
+2026/6/17 11:54
+igatemini.com/sat/manual3?p=PDF
+www.igatemini.com/sat/manual3?p=PDF
+19/48
+
+--- Page 20 ---
+MAIN
+Choose the mode of the MAIN band.
+SUB
+Choose the mode of the SUB band.
+2026/6/17 11:54
+igatemini.com/sat/manual3?p=PDF
+www.igatemini.com/sat/manual3?p=PDF
+20/48
+
+--- Page 21 ---
+Best Practice
+For the easiest operation follow the steps below. This is tailored for the linear satellites but partly apply to the FM ones also.
+1. Choose a satellite and transponder.
+2. Tune your RIT knob on the radio until you hear your self. You should only have to move the RIT within a couple KC to find
+yourself. Do not touch the tuning knob until you find yourself.
+3. One you can hear yourself you can then use the radio's tuning knob to work your way up and down the passband.
+For best result using the RIT set your radio to not display the 1Hz digit. With the 1Hz showing you'll have rotate the RIT
+much more than if that digit is off. To turn the 1Hz digit off press and hold the digit for at least one second. (9700)
+Adding and Editing Transponders
+You can add transponders by clicking the ADD  or by clicking the numeric portion of a transponder line in the list of
+transponders.
+Either way will open the Tranponder Edit panel as shown above.
+DESCR
+The transponder description.
+FREQ UP
+The uplink frequency in MHz.
+BW
+For sideband satellites, this is the bandwidth of the transponder in kHz. You can determine the
+bandwidth of transponders by referencing the SatNogs page.
+MODE UP
+The uplink mode.
+PL UP
+For FM satellites, this is the PL tone of the uplink.
+FREQ DOWN
+The downlink frequency in MHz.
+RIT
+The RIT setting applied automatically when the transponder is selected. For negative RIT values,
+enter the value as a negative number. For example, -0.600.
+MODE DOWN
+The downlink mode.
+APPLY RIT SETTING
+When checked, the RIT setting is applied automatically to all other transponders when they are
+selected. Ensure that only one transponder has this checked.
+SELECT FIRST
+Choose this transponder first when the satellite is tracked.
+REMOVE TRANSPONDER Delete this transponder.
+SAVE
+Save changes.
+CLOSE
+Close the transponder edit panel without saving changes.
+If your radio supports both VFO mode and SATELLITE mode, always use VFO mode. Do not use SATELLITE mode on your
+radio. For the Icom 9700, and radios that support it, display both VFOs on the screen at the same time. The red TX icon will be
+2026/6/17 11:54
+igatemini.com/sat/manual3?p=PDF
+www.igatemini.com/sat/manual3?p=PDF
+21/48
+
+--- Page 22 ---
+above the top VFO. If the red TX icon is on the bottom VFO then you are in satellite mode and you should change to VFO
+mode.
+Some radios have a spectrum scope. If you wish to see the received signals on the scope be sure to attach the scope to the
+receive VFO. (See your radio's manual for instructions)
+In order to use the PL Tone properly on your Icom, ensure the following setting is set to ON (DUP) (See your radio's manual for
+instructions)
+CSN Technologies
+CSN Technologies SAT Editing a transponder to ad
+CSN Technologies SAT Editing a transponder to ad
+前往平台观看：
+2026/6/17 11:54
+igatemini.com/sat/manual3?p=PDF
+www.igatemini.com/sat/manual3?p=PDF
+22/48
+
+--- Page 23 ---
+QSO Log
+The S.A.T. incorporates a QSO logging feature which automatically fills in all the required fields for a sucessful contact.
+While tracking a satellite, press the QSO LOG  button at the bottom of the S.A.T. interface to open the QSO log window as shown
+above.
+Enter the contact callsign. If your QRZ credentials are entered in the Locations settings, you can press the LOOKUP  button to
+automatically fill in the GRID, NAME, STATE and COUNTRY fields.
+You can add a comment for the contact (see below for details on the comment field)
+Finally press ADD  and the QSO entry will be saved in the S.A.T. and will also be displayed in the main window in the QSO Log
+list near the bottom of the screen.
+ADIF Export
+The QSO log can be downloaded from the S.A.T. in ADIF format. The ADIF file will contain fields that you do not need to
+complete since the S.A.T. knows what they are and will fill them in for you. Field such as satellite name, uplink and downlink
+frequencies, modes and location are all automatically completed for you.
+Logging Programs
+The S.A.T. can send QSO log entries to your favorite logging program at the moment they are added. Choose your logging
+program and associated settings in the Location panel. Instruction for the support logging programs can be found in the
+Third Party Interfaces section of this manual.
+CALLSIGN
+Contact callsign.
+GRID
+Contact grid square.
+NAME
+Contact name.
+STATE
+Contact state.
+COUNTRY
+Contact country.
+RST SENT
+RST Sent
+RST RECV
+RST Received
+COMMENT
+Log comment.
+LOOKUP
+Press to lookup callsign in the QRZ.com database.
+ADD ENTRY
+Save QSO entry to log.
+CLEAR ENTRY
+Clear the current entry fields.
+2026/6/17 11:54
+igatemini.com/sat/manual3?p=PDF
+www.igatemini.com/sat/manual3?p=PDF
+23/48
+
+--- Page 24 ---
+DOWNLOAD LOG Download the QSO log in ADIF format.
+DELETE LOG
+Delete the entire QSO log from the S.A.T.
+CLOSE
+Close the QSO log window.
+2026/6/17 11:54
+igatemini.com/sat/manual3?p=PDF
+www.igatemini.com/sat/manual3?p=PDF
+24/48
+
+--- Page 25 ---
+Comment Field
+The comment field supports macro variables that change according to the current state of the S.A.T.
+For example, if you wanted to have the comment say "Thank you for the contact on RS-44" but have RS-44 always be the
+current satellite that your are tracking, the your would enter "Thank you for the contact on $s"
+The S.A.T. will replace the following variables according to the list below:
+$m
+My callsign as it's entered in the Location settings
+$c
+The contact callsign.
+$n
+The contact name.
+$s
+The satellite name
+Limitations
+The QSO log of the S.A.T. is intended to make it easy to add satellite contacts and is not a full featured logging program.
+You should download the QSO frequently and import into your favorite logging program and delete the log from the S.A.T.
+The S.A.T. is limited to storing a maximum of 100 QSO log entries. Once filled, new entries cannot be added.
+2026/6/17 11:54
+igatemini.com/sat/manual3?p=PDF
+www.igatemini.com/sat/manual3?p=PDF
+25/48
+
+--- Page 26 ---
+GPS
+The S.A.T. contains a built in GPS to provide you with the highest level of positional accuracy. It also makes it easier when
+roaming since you do not need to change your location setting when you move from place to place.
+The TRACK panel in the main interface indicates the current status of the GPS by displaying the number of GPS satellites
+acquired and the current gris square.
+The status line is red when the GPS does not have a lock. Green when it is locked. Yellow when it locked but is not being used
+because it's disabled in the Location settings.
+If the GPS is Enable in the Location panel but is does not yet have a lock, then the position you have saved are used.
+The STAT  toggle the polar view from normal satellite view to GPS satellite view (shown above). The GPS satellite view shows
+the position of the GPS satellites in the sky and your current latitude and longitude.
+The GRID  toggles GPS GRID mode. This is used for roaming and changes the LCD screen on the S.A.T. to display the current grid
+square, time and exact coordinates. In this mode, the S.A.T. will beep as as you cross grid boundaries. This mode can be started
+automatically by choosing "Enable w/ Auto Grid Mode" in the Location settings. If option is selected the the S.A.T. will enter GPS
+Grid mode automatically about 2 minutes after it boots. In this way, you do not need to connect to the S.A.T. to press the GRID
+button to turn on GPS Grid mode.
+Note
+The GPS antenna is built into the S.A.T. The ability to acquire a lock is of course dependent on the environmental conditions
+that the S.A.T. is in. It naturally works best outside with a clear view of the sky. We have found that it also works well inside
+homes and buildings. It may take a long time to acquire a lock in poor conditions. If you cannot acquire a lock, make sure that
+your postion is set in the Location settings.
+2026/6/17 11:54
+igatemini.com/sat/manual3?p=PDF
+www.igatemini.com/sat/manual3?p=PDF
+26/48
+
+--- Page 27 ---
+Schedule
+You can schedule the satellites that you want to track. For example if you want to collect APRS packets from every pass of the
+ISS, even when you're not present, you can do that here.
+Choose a satellite and a transponder from the dropdown lists and click the ADD button. You can add any number of satellites
+this way. To remove a satellite, click the red X next to the name.
+To enable the schedule, press the SCHEDULE button in the TRACK panel. A green button means the schedule is active and if red
+then it is not active.
+With the schedule enabled the S.A.T. will track all the satellites in list in the order of AOS. Tracking starts about 60 seconds before
+AOS.
+A satellite that is currently being tracked will never be interrupted by a scheduled satellite. So if you are manually tracking when
+a schedule pass is approaching your currently tracked satellite will not be stopped.
+Also, when two scheduled satellites overlap in time, the one with the earlier AOS will be tracked first and all the way to LOS
+before the next satellite in the schedule is selected and tracked.
+ADD SAT Add the currently selected satellite and transponder to the schedule.
+CLEAR
+Remove all satellites from the schedule.
+LOAD
+Load the saved schedule.
+SAVE
+Save the current schedule.
+CLOSE
+Close the window.
+2026/6/17 11:54
+igatemini.com/sat/manual3?p=PDF
+www.igatemini.com/sat/manual3?p=PDF
+27/48
+
+--- Page 28 ---
+Location Settings
+CALLSIGN
+Enter your callsign here to be used in the QSO logging feature.
+GRID
+Enter your gridsquare to automatically calculate your latitude and longitude. It's also used the the
+QSO logging feature.
+LAT,LON
+Enter your precise latitude and longitude.
+USE GPS
+Use the GPS to automatically fill in the Grid and location fields. GPS lock required
+GPS ACTIVE
+Enable the GPS for satellite tracking.
+TZ OFFSET
+Enter your timezone offset from UTC in hours.
+UNITS
+Choose to display Imperial or Metric units.
+QRZ LOGIN
+Enter your QRZ.com login name (optional, used for the Call Log lookup feature)
+QRZ PASSWORD
+Enter your QRZ.com password
+WEATHER API KEY
+Enter your OpenWeatherMap account key (optional). Create a free account at OpenWeatherMap to
+obtain a key.
+LCD BRIGHT
+Adjust the brightness of the LCD screen. (For compatable units)
+TIME FORMAT
+Choose your preferred time display format.
+QSO LOG TYPE
+For automatic QSO log entry, choose your log software. See the Third Party Interfaces section below
+for instructions on configuring each log type.
+QSO LOG IP
+Enter the IP and PORT where the log software is running.
+DX COMMANDER PORT Enter a port here if using DX Commander. (Must be using DX Keeper as a log type)
+SAT SUBSCRIPTION
+Enable or Disable your S.A.T. subscription if you have purchased one.
+2026/6/17 11:54
+igatemini.com/sat/manual3?p=PDF
+www.igatemini.com/sat/manual3?p=PDF
+28/48
+
+--- Page 29 ---
+Rotator Panel
+Rotator Panel
+The Rotator Panel is where you will find the rotator and satellite tracking settings.
+TYPE
+Choose the rotator model to use. The S.A.T. natively supports the Yaesu G5500, G5400 and G5600 with the
+included cable. PstRotator is also supported.
+IP ADDRESS
+For PstRotator enter the IP address of the computer where PstRotator is running. PstRotator needs to be
+configured to accept UDP packets. In the PstRotator "Communication" menu choose "UDP Control Port." You
+can accept the default IP address and port in displayed in this window. If the settings are blank the click the
+"By Default" button. Click "Save Settings" to close the window. Finally, under the Settings menu in
+PstRotator, click "UDP Control" to allow remote control. Once configured properly, PstRotator will send
+feedback to your S.A.T. letting it know the antenna's current position. If you do not see the correct antenna
+postion displayed in the S.A.T., you may need to allow UDP port 12000 through your computer's firewall.
+TOLERANCE
+The S.A.T. tracks in such a way that when it moves the antenna it moves ahead of the satellite. This causes the
+satellite to pass directly in front of the antenna as the satellite moves across the sky and prevents the
+antenna from always having to "catch up" to the satellite. The TOLERANCE sets this window of movement.
+For example, with a setting of 10° for azimuth, when the satellite moves ahead of the antenna by 5° the
+antenna will move 5° ahead of the satellite. Then the satellite will then pass pass directly in front of the
+antenna and when it leads by 5° again, the antenna will move 5° ahead of it again. Same for elevation.
+PARK POS
+The position the antenna should move to when the Park button is pressed.
+READY POS
+The position the antenna should move to when the Ready button is pressed. For the fastest response when
+tracking, a Park position of 180° azimuth and 90° elevation should be used.
+POST PASS
+Choose how the antenna should be positioned at the end of a pass. You can choose to move to the Park or
+Ready position or no movement. Be aware this option may stress your rotator beyond the duty cycle limits
+specified in you rotator user manual.
+POST PASS
+Choose how the antenna should be positioned at the end of a pass. You can choose to move to the Park or
+Ready position or no movement. Be aware this option may stress your rotator beyond the duty cycle limits
+specified in you rotator user manual.
+ANTENNA FLIP
+Enable or Disable the antenna flip feature. With this setting enabled, the S.A.T. will automatically flip the
+antenna over when a satellite path passes though north so there is no time lost during the tracking. (On the
+G5400 and G5600 the S.A.T. will flip the antenna if a satellite passes through south.)
+ALARM
+The S.A.T. contains a built in beeper that will sound when the satellite reaches a set amount of time prior to
+AOS. Enter the minutes and seconds here at which time you would like to hear the alarm. Enter 00:00 to
+disable the alarm.
+2026/6/17 11:54
+igatemini.com/sat/manual3?p=PDF
+www.igatemini.com/sat/manual3?p=PDF
+29/48
+
+--- Page 30 ---
+PLAY ALARM ON The AOS alarm can be sounded on the S.A.T. using built in beeper, in the web browser or both. Note that not
+all web browers are supported.
+QUALITY
+This is a quality setting for the angle sense potentiometer in the rotator housing. If you hear excessive relay
+clicking in your rotator box you can slowly increase this value. A higher value reduces the resolution when the
+antenna is commanded to a particular position. For example if the setting is 2° here and the antenna is
+commanded to 100° it may stop anywhere between 98° and 102°.
+YAESU LIMITS
+(See the calibration procedure)
+RELAY
+Enable the build in relay. Your S.A.T. has a three terminal relay jack. The center is common and the right and
+left sides are NO and NC respectively. When the relay option is enabled, the relay closes when the satellite
+reaches 3° below the horizon just before AOS and stays closed until LOS. Relay is rated 24 VAC, 2 Amps, total
+48 Watts.
+SIMULATE
+If no antenna is connected then checking this option simulates one and the information panels and maps
+display where the would be if it was connected.
+SAVE
+Save and close the Rotator Panel
+2026/6/17 11:54
+igatemini.com/sat/manual3?p=PDF
+www.igatemini.com/sat/manual3?p=PDF
+30/48
+
+--- Page 31 ---
+Rotator Calibration
+Before attaching your S.A.T. to your rotator, manually set the azimuth and elevation to their minimums. On the G5500 this is 0° AZ
+and 0° EL, on the G5400 this is 180° AZ with the needle to the left and 0° EL. You can now attach the S.A.T. to your rotator using
+the supplied DIN cable.
+Once connected, open the ROTATOR PANEL in the Dashboard.
+Automatic Calibration
+Your S.A.T. will swing the antenna rotator through it's full rotations in both Azimuth and Elevation to detect the limits. Make sure
+your rotator is ready to move through the full rotation and nothing is obstructing it's motion such as short wires, tree branches,
+etc. Once the calibration is started the only way to stop it is to remove power from the S.A.T.
+Press the AUTO CAL button in the opened ROTATOR PANEL. When you press OK on the warning box the rotator will start moving.
+This can take up to four minutes. While it's calibrating you can watch the guages on the Yaesu control box. When it's complete a
+box will notify you that the calibration is complete. You can skip the Manual Calibration below.
+If, however, a box opens and indicates that voltages were exceeded then please follow the Manual Calibration procedure below.
+*Note: Not all rotator choices support auto-calibration.
+Manual Calibration
+Click on the VOLTS button (You can close the message that opens, it's just a reminder of these instructions). The sensed voltage
+from the rotator control box is now displayed on the LCD.
+Manually increase your azimuth and watch the voltage on the LCD. The first number on the top line is the voltage for azimuth.
+Stop moving if this voltage goes higher than 5 volts! If it passes 5 volts then you need to turn the Output Voltage Adjustment
+knob on the back of your rotator control box to decrease it. See your Yaesu Manual for instructions.
+The goal is to increase the AZ to it's maximum and adjust the voltage to keep it between 4 and 5 volts. The maximum azimuth for
+the G5500 is the red 90° mark on the right side of the guage, on the G5400 the maximum is the 180° on the right of the guage. If
+the voltage ends up below 4 volts then for highest accuracy you should increase it by turning the Output Voltage Adjustment on
+the back of your rotator control box. When the voltage is between 4 and 5 volts at the maximum azimuth then you can move on
+to the elevation setting.
+The elevation is set the same way as the azimuth. Increase the elevation and watch the LCD to make sure it does not pass 5 volts.
+Again adjust the voltage to get it between 4 and 5 volts at the maximum elevation (180° on both the G5400 and G5500). *If your
+G5500 is limited to only 90 degrees elevation then choose "Yaesu G5500 360/90" in the rotator selection. Then during the manual
+calibration you can move the elevation to 90 degrees instead of the full 180.
+Finally, when the both azimuth and elevation are at their maximum positions and the voltages are between 4 and 5 volts, press
+the SET MAX button.
+Now move both AZ and El all the way back to the minimums. Press the SET MIN button.
+Your S.A.T. is now calibrated to your rotator control box. Press the STOP button to exit Voltage mode. You need to do this
+calibration process every time the S.A.T. boots. Just kidding! *The calibration only has to be done once ;).
+Note
+If anything changes in your rotator configuration, such as changing the rotator cables, you should calibrate the S.A.T. again.
+2026/6/17 11:54
+igatemini.com/sat/manual3?p=PDF
+www.igatemini.com/sat/manual3?p=PDF
+31/48
+
+--- Page 32 ---
+CSN Technologies
+S.A.T. Satellite Rotator Controller - Manual Voltage
+S.A.T. Satellite Rotator Controller - Manual Voltage
+前往平台观看：
+2026/6/17 11:54
+igatemini.com/sat/manual3?p=PDF
+www.igatemini.com/sat/manual3?p=PDF
+32/48
+
+--- Page 33 ---
+Radio Panel
+Configure your Radio in this panel
+TYPE
+Choose the type of radio to control. The S.A.T. works best with the Icom satellite radios - 9700,
+9100, 910, 820 and 821. It will work with other Icom radios but your results will be limited since
+they are not full duplex. The Icom 705 is not supported since it does not have a CI-V port.
+BAUD
+Select the baud rate of your radio. This must match the baud rate setting on your radio. 19200
+baud is recommended for radios that support it.
+HAMLIB/SDR IP
+Enter the IP address and port of a SDR program that supports Hamlib control. Leave blank to
+disable.
+ADDRESS
+Enter the CI-V hexadecimal address of your radio. The Icom 9700 default address is A2h.
+VFO TYPE
+The VFO type of your radio. The Icom 9700 is Main-Up / Sub-Down.
+* Do not enable Satellite Mode on the Icom 9700
+UPDATE INTERVAL
+How often to send frequency updates to the radio. (In milliseconds)
+MIN FREQ CHANGE
+Minimum doppler correction in Hz before sending frequency updates to the radio. (Overrides
+update interval)
+AFTER PASS ACTION
+Choose what you want your radio to do after a satellite pass. Options are Do nothing, Restore
+VFO which returns the state of the VFO to what it was prior to tracking, Set Freq, or choose a
+memory or calling channel.
+AFTER PASS FREQ OR MEM CH If you choose Set Freq above, enter the full frequency here. If you choose Set Mem Ch# above
+then enter the memory channel here.
+AFTER PASS MODE
+If setting a frequency, you can also set the mode.
+AFTER PASS PL
+If setting a frequency, you can also set a PL tone.
+SAVE
+Save and close the Radio Panel
+2026/6/17 11:54
+igatemini.com/sat/manual3?p=PDF
+www.igatemini.com/sat/manual3?p=PDF
+33/48
+
+--- Page 34 ---
+Recommended 9700 Settings
+S.A.T. Settings:
+Baud: 19200
+Address: A2h
+VFO Type: Main-Up / Sub-Down
+Update Interval: 500
+In the Icom, be sure to set:
+Baud: 19200 Not Auto
+Address: A2h
+CIV Transceive: Off
+Menu-Set-Function-Auto Repeater: ON(DUP)
+Recommended 7100 Settings
+S.A.T. Settings:
+Baud: 19200
+Address: 88h
+VFO Type: VFO A-Up/VFO B-Down
+Update Interval: 500
+In the Icom, be sure to set:
+Baud: 19200 Not Auto
+Address: 88h
+CIV Transceive: Off
+Set-Function-SPLIT/DUP: ON(DUP)
+Icom 5100 Settings
+Warning: The Icom 5100 requires a cable splitter (Like this one).
+The RED side of this splitter is for CI-V and the BLACK side is for a speaker.
+Never plug the S.A.T. directly into the radio or into the black side of the splitter as this may damage the S.A.T.
+S.A.T. Settings:
+Baud: 19200
+Address: 8Ch
+VFO Type: Main-Up/Sub-Down
+Update Interval: 500
+On the radio, set:
+Attach the cable splitter into SP/CIV jack on the radio. Plug the S.A.T. into the RED port on the splitter. Plug a speaker into
+the other port.
+Baud: 19200 Not Auto
+Address: 8Ch
+CIV Transceive: Off
+2026/6/17 11:54
+igatemini.com/sat/manual3?p=PDF
+www.igatemini.com/sat/manual3?p=PDF
+34/48
+
+--- Page 35 ---
+Icom 2730 Settings
+The Icom 2730 is not fully working at this time. We are investigating.
+Warning: The Icom 2730 requires a cable splitter (Like this one).
+The RED side of this splitter is for CI-V and the BLACK side is for a speaker.
+Never plug the S.A.T. directly into the radio or into the black side of the splitter as this may damage the S.A.T.
+S.A.T. Settings:
+Baud: 19200
+Address: 90h
+VFO Type: VFO A-Up/VFO B-Down
+Update Interval: 500
+On the radio, set:
+Attach the cable splitter into SP/CIV jack on the radio. Plug the S.A.T. into the RED port on the splitter. Plug a speaker into
+the other port.
+Baud: 19200 Not Auto
+Address: 90h
+CIV Transceive: Off
+Note
+* Note that the SAT will utilize memory channel 99 if you choose 'Restore VFO' in the After Pass option. Any contents in
+memory channel 99 will be overwritten.
+2026/6/17 11:54
+igatemini.com/sat/manual3?p=PDF
+www.igatemini.com/sat/manual3?p=PDF
+35/48
+
+--- Page 36 ---
+TLE/FREQ DB Panel
+TLE FREQ/DB Panel
+The TLE Panel is where you set various TLE options.
+SOURCE URL
+Provide an internet address of the TLE to download. Note that the S.A.T. does not support https://
+addresses. You can usually simply remove the 's' from https and it will work but it depends on the
+server that you are connecting to. Click UPDATE NOW  to update. Note that an internet connection
+is requires to update.
+Default setting: http://www.csntechnologies.net/SAT/csnbare.txt
+UPLOAD
+Use this option to upload a custom TLE file. This file will replace the TLEs that are stored in the SAT.
+The uploaded TLE file should be in the standard format and must not contain any header lines.
+AUTO UPDATE
+How often to automatically update the TLEs from the SOURCE URL. Enter zero to disable auto-
+updates. (Click SAVE  to save setting)
+Default setting: 7 days
+LAST
+The date and time of the last TLE update.
+NEXT
+The date and time of the next scheduled update if AUTO UPDATE has been set.
+GROUND TRACK
+How many hours or orbits of ground track should be shown on the maps. (Click SAVE  to save
+setting)
+Default setting: 3 hours
+FREQ DB
+Options for refreshing the transponder database.
+INTERNET UPDATE
+Updates the transponder data while preserving changes you have made.
+RESET FROM INTERNET Factory resets the transponder database. Changes you have made will be lost.
+DOWNLOAD TO PC
+Downloads a text file of the transponders to your PC. We suggest you back up your frequency file to
+your PC after you make transponder changes.
+UPLOAD TO SAT
+Lets you choose a transponder file and upload it to the SAT.
+CLOSE
+Close the TLE/FREQ DB Panel
+If you do not see any freqencies when you track a satellite please open the TLE/FREQ DB panel
+and click the 'RESET FROM INTERNET' button. This will load the frequency database.
+Pro Tip
+CSN Technologies maintains a customized TLE source specifically targeted to Amateur Satellite use. The TLE data is refreshed
+daily and new satellites are added as soon as we have TLE data for them.
+The URL for the CSN TLE is:
+2026/6/17 11:54
+igatemini.com/sat/manual3?p=PDF
+www.igatemini.com/sat/manual3?p=PDF
+36/48
+
+--- Page 37 ---
+http://www.csntechnologies.net/SAT/csnbare.txt
+The satellite names in the CSN TLE file follow the AMSAT naming conventions.
+Pro Tip
+We recommend you schedule TLE updates to occur every 7 days. While our TLE file is refreshed daily, the actual TLE data
+inside the file may be older. TLE data for individual satellites is updated on their own schedules which vary from daily (ISS) to
+weeks.
+Note that AMSAT updates their popular nasabare.txt TLE file weekly.
+2026/6/17 11:54
+igatemini.com/sat/manual3?p=PDF
+www.igatemini.com/sat/manual3?p=PDF
+37/48
+
+--- Page 38 ---
+Network Panel
+* This section describes the Network Settings panel. For more information regarding the access point on the S.A.T., see the
+Network Setup page in the Get Started section
+The visible 2.4GHz WiFi points will be available in the dropdown box. If needed, click the REFRESH button to refresh the list. If
+you want to connect to a hidden WiFi network, please see the "Common Questions" section at the bottom of the page. Use the
+WiFi AP select box to choose an Access Point. Enter your WiFi password and click CONNECT. The S.A.T. will restart and attempt to
+connect to the WiFi network. Look at the LCD to see the IP address obtained and then connect to it using your mobile devices.
+Once connected you can update the TLEs and perform firmware updates.
+REFRESH
+Refresh the Access Point dropdown list.
+CONNECT
+Connect to the selected Access Point.
+CLOSE
+Closed the Network Panel.
+FORGET NETWORK Disconnect and forget the currently connection WiFi network. The S.A.T. will reboot into Access Point Mode
+CSN Technologies
+CSN SAT Tracker getting it on your wifi network
+CSN SAT Tracker getting it on your wifi network
+前往平台观看：
+2026/6/17 11:54
+igatemini.com/sat/manual3?p=PDF
+www.igatemini.com/sat/manual3?p=PDF
+38/48
+
+--- Page 39 ---
+About Panel
+The About panel display firmware versions and copyright information.
+FIRMWARE
+Displays current firmware version.
+SERIAL
+Displays S.A.T. serial number.
+MANUAL
+Link to the S.A.T. Online Manual
+CHANGELOG
+Link to the S.A.T. Firmware Changelog
+COPYRIGHT
+Copyright Information
+BACKUP
+Download a copy of the S.A.T. configuration settings.
+RESTORE
+After choosing a settings file to restore, click this button to upload the settings.
+FACTORY RESET
+Factory Reset the S.A.T.
+OPEN RECOVERY PAGE May be used in special cases by tech support.
+CLOSE
+Close the About Box
+CSN Technologies
+CSN Technologies SAT Firmware updating. easy g
+CSN Technologies SAT Firmware updating. easy g
+前往平台观看：
+2026/6/17 11:54
+igatemini.com/sat/manual3?p=PDF
+www.igatemini.com/sat/manual3?p=PDF
+39/48
+
+--- Page 40 ---
+SDR Setup
+The S.A.T. can be configured to send the downlink frequency and mode to a compatable SDR programs.
+The requirement is your SDR program must be able to be controlled over the network using Hamlib commands. Two programs
+tested are SDR Angel and Gqrx.
+Other SDR programs may work. Check the documention of your program to see how to set it up.
+Configure SDR Angel
+Configure Gqrx
+Enable S.A.T. SDR Control
+To enable SDR control in the S.A.T., simply open the Radio Settings panel and enter the IP address of the computer running the
+SDR program.
+It's recommended to use port 4532 for SDR control. This port number must match the port number configured in the SDR
+program.
+SDR support is independant of what type of physical radio you are using. If the IP address and port are set, the S.A.T. will try to
+connect to the SDR program when you track a satellite and each time you change transponders.
+However, if you do not have a physical radio and you are only using an SDR, then select Hamlib/SDR as the radio.
+SDR/DL Button
+When using an SDR, a new button will appear in the radio section of the S.A.T. SDR D/L
+This button lets the S.A.T. know which receiver is controlling the downlink frequency. Normally, without an SDR, you tune your
+radio with the VFO knob and the S.A.T. will adjust accordingly. If you enable this button while using an SDR, you can tune with
+the SDR program and the S.A.T. will adjust accordingly with the new SDR frequency instead of the radio.
+Pro Tip
+To disable SDR support in the S.A.T. you only need to set the port to zero. The IP address can be left in the box. The S.A.T. will
+not try to connect to a SDR program if the port is zero.
+2026/6/17 11:54
+igatemini.com/sat/manual3?p=PDF
+www.igatemini.com/sat/manual3?p=PDF
+40/48
+
+--- Page 41 ---
+SDR Angel Setup
+Click the Add Feature button 
+ to open the Add Feature dialog. Select RigCtl Server and click the Apply button. Click Close to
+close the Add Feature dialog.
+The RigCtl Server window should be displayed:
+2026/6/17 11:54
+igatemini.com/sat/manual3?p=PDF
+www.igatemini.com/sat/manual3?p=PDF
+41/48
+
+--- Page 42 ---
+Select your device and channel in the RigCtl settings. You must already have a channel active in order to use RigCtl. It doesn't
+matter what mode of channel you select since the S.A.T. will send the command to change it.
+Click the blue Play button to start the RigCtl Server.
+SDR Angel should now respond to frequency and mode commands sent by the S.A.T.
+2026/6/17 11:54
+igatemini.com/sat/manual3?p=PDF
+www.igatemini.com/sat/manual3?p=PDF
+42/48
+
+--- Page 43 ---
+Gqrx Setup
+To configure Gqrx you will need to add the IP address of the S.A.T. into the network setting panel.
+In the Tools Menu - click Remote control settings to open the network setting panel:
+Click the Button to add a new entry in the list on the right. Here you will enter the IP address of the S.A.T.
+The IP address must be entered in a very specific way. For example, if the IP address of your S.A.T. is 192.168.1.123 it must be
+entered list this:
+::fff :192.168.1.123
+We recommend using 4532 for the port number since it is the customary one used for Hamlib radio control. However, you can
+choose any port you like so long as it matches the port number set in the S.A.T.
+Ensure that port you have selected is not blocked by your computers firewall. You may need to add an exception for it.
+Click OK to save the settings.
+Once the settings are saved, you enable remote control in the Tools Menu and selecting Remote control
+Gqrx should now respond to frequency and mode commands sent by the S.A.T.
+Pro Tip
+2026/6/17 11:54
+igatemini.com/sat/manual3?p=PDF
+www.igatemini.com/sat/manual3?p=PDF
+43/48
+
+--- Page 44 ---
+You can quickly enable and disable the network control in Gqrx by using the buttons instead of the menu:
+2026/6/17 11:54
+igatemini.com/sat/manual3?p=PDF
+www.igatemini.com/sat/manual3?p=PDF
+44/48
+
+--- Page 45 ---
+UDP Broadcasts
+The S.A.T. will broadcast a UDP packet on port 9932 when certain events occur.
+The data format is a comma seperate string each of which is described below. All packets starts with the text "SAT" and the name
+of the event. Each packet ends with a newline character (\n).
+BOOT
+Broadcast when the S.A.T. is power up.
+Format: SAT,BOOT,SERIAL,VERSION
+SERIAL is the serial number of the S.A.T.
+VERSION is the firmware version.
+Example:
+SAT,BOOT,1147717711,8.600
+START TRACK
+Broadcast when the S.A.T. starts to track a satellite.
+Format: SAT,START TRACK,NAME,CATNO
+NAME is the tracked satellite name.
+CATNO is the tracked satellite catalog number.
+Example:
+SAT,START TRACK,LEDSAT,49069
+AOS
+Broadcast when the tracked satellite reaches AOS
+Format: SAT,AOS,AZ
+AZ is the azimuth of the satellite at AOS.
+Example:
+SAT,AOS,27.1
+LOS
+Broadcast when the tracked satellite reaches LOS
+Format: SAT,LOS,AZ
+AZ is the azimuth of the satellite at LOS.
+Example:
+SAT,LOS,174.9
+TRANSPONDER Broadcast when a transponder is selected.
+Format: SAT,TRANSPONDER,NAME,UPFREQ,UPMODE,DOWNFREQ,DOWNMODE
+NAME is the transponder name.
+UPFREQ is the uplink frequency in Hz.
+UPMODE is the uplink mode.
+DOWNFREQ is the downlink frequency in Hz.
+DOWNMODE is the uplink mode.
+Example:
+SAT,TRANSPONDER,1200 Baud Data,435310000,USB-D,435190000,USB-D
+STOP
+Broadcast when a S.A.T. stops tracking a satellite.
+Format: SAT,STOP
+Example:
+SAT,STOP
+QSO
+Broadcast when a QSO log entry is added
+Format:
+SAT,TRANSPONDER,SATNAME,CALL,GRID,MODE,COMMENT,RSTSENT,RSTRECV,UPFREQ,DOWNFREQ,NAME
+SATNAME is the satellite name.
+CALL is the contact callsign.
+2026/6/17 11:54
+igatemini.com/sat/manual3?p=PDF
+www.igatemini.com/sat/manual3?p=PDF
+45/48
+
+--- Page 46 ---
+GRID is the contact grid.
+MODE is the contact mode.
+COMMENT is the QSO log comment.
+RSTSENT is the RST sent.
+RSTRECV is the RST received.
+UPFREQ is the uplink frequency in Hz.
+DOWNFREQ is the downlink frequency in Hz.
+NAME is the contact name.
+Example:
+SAT,QSO,LEDSAT,KC2SYF,fn30ha,PKT,Thanks!,59,59,435.311036,435.188964,Mike
+2026/6/17 11:54
+igatemini.com/sat/manual3?p=PDF
+www.igatemini.com/sat/manual3?p=PDF
+46/48
+
+--- Page 47 ---
+FAQ
+Common Questions / Troubleshooting
+The S.A.T. is much slower than normal.
+The S.A.T. is having trouble communicating with your radio. Check all connections and radio settings (address & baud). If you
+do not have a radio attached ensure that the radio type is set to NONE in the radio settings panel.
+How do I connect to a hidden WiFi network?
+First connect to the Access Point of S.A.T. as described above. Once connected enter the following into the browser address
+bar:
+http://192.168.4.1/?a=W|APNAME|password
+Replace APNAME with the exact name of the hidden WiFi network and "password" with the password for the network.
+Once entered, your S.A.T. will reboot and should connect to the hidden WiFi network.
+Notice
+If there are spaces or punctuation in the SSID or password then it must be URL encoded first. Click here for an online
+encoding calculator.
+Example:
+The hidden network name is My Hidden_Network! and the password is My#$%Password.
+The SSID gets encoded to My+Hidden_Network%21
+The password gets encoded to My%23%24%25Password
+The complete URL encoded string would then be:
+http://192.168.4.1/?a=W|My+Hidden_Network%21|My%23%24%25Password
+What's in the box?
+You should receive the S.A.T. device along with Micro-USB power cable, Rotator DIN cable, and a TRS cable to interface
+with Icom radios. A Micro-USB power adapter is not included.
+How is the clock set?
+The clock on the S.A.T. is set automatically by the web browser that opens the S.A.T. dashboard. You can choose from
+various time display settings in the LOCATION panel.
+I get an error when I download TLEs
+First make sure that the S.A.T. is not in access point mode and is connected to a WiFi network that has internet access.
+When in access point mode the IP address on the LCD will be 192.168.4.1 and there will be a WiFi network available on
+your mobile device with the name 'CSN_SAT_XXXX' where XXXX is the SAT serial number.
+The S.A.T. does not support https addresses for the TLE url (note the 's' at the end of 'http'). Usually you can simply
+remove the 's' from the address and try again. If it still doesn't work, and you need to have that list, you'll have to
+download it to your device. Then you can upload it using the "Custom TLE Files" procedure described above.
+The following TLE sources and know to work well:
+AMSAT nasabare.txt (updated weekly)
+http://www.amsat.org/tle/current/nasabare.txt
+CSN nasabare.txt (a copy of AMSATs nasabare.txt) -
+http://www.csntechnologies.net/SAT/nasabare.txt
+2026/6/17 11:54
+igatemini.com/sat/manual3?p=PDF
+www.igatemini.com/sat/manual3?p=PDF
+47/48
+
+--- Page 48 ---
+CSN csnbare.txt (same satellites as nasabare.txt but generated with Celestrack data, updated daily) -
+http://www.csntechnologies.net/SAT/csnbare.txt
+How do I factory reset?
+You can find the Factory Reset button in the About box in the web interface.
+Another way to factory reset is remove power from the SAT and short the CI-V cable contacts with aluminum foil. When
+the SAT is powered up with the cable shorted it will enter reset mode. You will then have two opportunities to release
+the short, depending of what type of reset you want. Watch the SAT's LCD and after a few seconds it will tell that if you
+release the short it will reset the WiFi. If you keep holding the short it will then tell you if you release that it do a full
+factory reset. When finished it will ask you to reboot the SAT which you can do by removing the USB power plug,
+waiting a couple of seconds, then reinsert it.
+QRZ Lookups Are Not Working
+Various web browser plugings may be preventing the S.A.T. from accessing the QRZ.com. Try disabling these plugins or
+adding exceptions if possible.
+I cant connect the S.A.T. to my WiFi network!
+The S.A.T. can only connect to 2.4Ghz networks. The S.A.T. searches for available access points when NETWORK panel is
+opened and also when the REFRESH button is clicked. Allow a few seconds for the search to complete. The discovered
+networks are then displayed in the WIFI AP selection box.
+Not being able to connect is usually caused by not having the correct WiFi password. Check the 2.4G password in your
+router settings, sometimes it is not the same as the 5G one.
+We found that there is a setting in xFinity access points that can prevent it from connecting. Find and uncheck the
+'Prefer private Connections' setting in your routers configuration.
+Also make sure that your access point if not filtering by MAC address for new connections.
+Ubiquity networks - If you have slow performance or difficuly connecting you may need to enable Legacy Wireless
+Mode. Please consult your devices documentation for more information.
+Starlink Wifi - Try seperating the 5G and 2.4G networks in you Starlink settings.
+2026/6/17 11:54
+igatemini.com/sat/manual3?p=PDF
+www.igatemini.com/sat/manual3?p=PDF
+48/48
+

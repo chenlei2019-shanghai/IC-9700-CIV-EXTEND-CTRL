@@ -42,7 +42,69 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
 
 from civ import CIVSerial, CIVController, bcd_to_freq, MODES, PREAMBLE, END_CODE
+from civ import set_radio_addr
 from lan import LanCIVTransport
+from item_map_9700_705 import IC9700_TO_IC705 as _RAW_ITEM_MAP, IC705_BCD_ITEMS as _RAW_705_BCD
+
+
+def _itemno(n: int) -> int:
+    """Convert a printed 4-digit item number (stored as decimal int, e.g. 106)
+    to the app's hex-style item value (0x0106)."""
+    return int(str(n).zfill(4), 16)
+
+
+# Item map uses printed decimal item numbers; convert to hex-style values
+IC9700_TO_IC705 = {_itemno(k): _itemno(v) for k, v in _RAW_ITEM_MAP.items()}
+IC705_BCD_ITEMS = {_itemno(x) for x in _RAW_705_BCD}
+
+# Radio model state: "ic9700" or "ic705"
+current_model = "ic9700"
+RIG_ADDRS = {"ic9700": 0xA2, "ic705": 0xA4}
+
+# Reverse map for translating radio responses back to UI (IC-9700) numbering.
+# One IC-705 item can serve several IC-9700 items (e.g. NB level 0321/0324 ->
+# 705 0356), so the reverse map is one-to-many and every matching UI control
+# gets updated from a single radio response.
+IC705_TO_IC9700 = {}
+for _k, _v in IC9700_TO_IC705.items():
+    IC705_TO_IC9700.setdefault(_v, []).append(_k)
+
+# IC-705-only BCD extra: 0089 REF Adjust (BCD, range 0000~0511)
+IC705_BCD_ITEMS_FULL = set(IC705_BCD_ITEMS) | {0x0089}
+
+# Items whose VALUE also needs translation (9700 0050 SPEECH Language:
+# 00=English,01=Japanese / 705 0053: 00=Japanese,01=English -> swap 0/1)
+VALUE_SWAP_ITEMS = {0x0050}
+
+
+def set_rig_model(model: str):
+    """Switch target radio model (ic9700 / ic705)."""
+    global current_model
+    current_model = model if model in RIG_ADDRS else "ic9700"
+    set_radio_addr(RIG_ADDRS[current_model])
+    logging.info("Rig model: %s (CI-V addr 0x%02X)", current_model, RIG_ADDRS[current_model])
+
+
+def to_radio_item(item: int) -> int:
+    """Translate a UI (IC-9700) 1A05 item number to the connected radio's."""
+    if current_model == "ic705":
+        return IC9700_TO_IC705.get(item, item)
+    return item
+
+
+def to_ui_items(radio_item: int) -> list:
+    """Translate a radio-reported 1A05 item number back to UI numbering.
+    Returns a list because one IC-705 item may map to several UI items."""
+    if current_model == "ic705":
+        return IC705_TO_IC9700.get(radio_item, [radio_item])
+    return [radio_item]
+
+
+def is_bcd_item(radio_item: int) -> bool:
+    """Check BCD encoding against the radio-side item number."""
+    if current_model == "ic705":
+        return radio_item in IC705_BCD_ITEMS_FULL
+    return radio_item in BCD_ITEMS
 
 # Global state
 current_transport = CIVSerial()
@@ -82,7 +144,35 @@ def int_to_bcd2(val: int) -> bytes:
 
 
 # CI-V items that use BCD encoding for values (range "0000 ~ 0255" in spec)
-BCD_ITEMS = {0x0112, 0x0113, 0x0114, 0x0027, 0x0152}
+# Note: values must be sent as 2-byte BCD (e.g. 200 -> 0x02 0x00); sending a
+# single raw binary byte makes the radio reject values whose nibbles are A-F
+# (e.g. 127 -> 0x7F), which caused "level can't be raised after lowering".
+BCD_ITEMS = {
+    0x0027,  # Beep Level
+    0x0031,  # Beep Sound (MAIN)
+    0x0032,  # Beep Sound (SUB)
+    0x0057,  # SPEECH Level
+    0x0072,  # REF Adjust
+    0x0073,  # REF Adjust (FINE)
+    0x0086,  # EMR AF Level
+    0x0101,  # ACC AF Output Level
+    0x0104,  # ACC IF Output Level
+    0x0106,  # USB AF Output Level
+    0x0109,  # USB IF Output Level
+    0x0112,  # ACC MOD Level
+    0x0113,  # USB MOD Level
+    0x0114,  # LAN MOD Level
+    0x0152,  # LCD Backlight
+    0x0215,  # VOICE TX Level
+    0x0221,  # Side Tone Level
+    0x0321,  # NB Level (144M)
+    0x0323,  # NB Width (144M)
+    0x0326,  # NB Width (430M)
+    0x0329,  # NB Width (1200M)
+    0x0333,  # TX PWR LIMIT (144M)
+    0x0335,  # TX PWR LIMIT (430M)
+    0x0337,  # TX PWR LIMIT (1200M)
+}
 
 
 def decode_level(payload: bytes) -> int:
@@ -149,7 +239,7 @@ def on_serial_data(msg: dict):
     elif cmd == 0x14:
         if len(payload) >= 3:
             sub = payload[0]
-            val = (payload[1] << 8) | payload[2]
+            val = bcd2_to_int(payload[1], payload[2])  # levels are 2-byte BCD
             out["event"] = "level"
             out["subcmd"] = sub
             out["value"] = val
@@ -194,13 +284,19 @@ def on_serial_data(msg: dict):
             out["item"] = 0x1A04
             out["value"] = payload[1] if len(payload) >= 2 else 0
         elif subcmd == 0x05 and len(payload) >= 3:
-            item = (payload[1] << 8) | payload[2]
-            out["item"] = item
+            radio_item = (payload[1] << 8) | payload[2]
             data = payload[3:]
-            if item in BCD_ITEMS and len(data) >= 2:
-                out["value"] = bcd2_to_int(data[0], data[1])
+            if is_bcd_item(radio_item) and len(data) >= 2:
+                value = bcd2_to_int(data[0], data[1])
             else:
-                out["value"] = list(data)
+                value = list(data)
+            # One radio item may feed several UI controls (IC-705 shared items)
+            for item in to_ui_items(radio_item):
+                v = value
+                if item in VALUE_SWAP_ITEMS and isinstance(value, list) and value and value[0] in (0, 1):
+                    v = 1 - value[0]  # SPEECH Language 0/1 reversed on IC-705
+                broadcast(dict(out, item=item, value=v))
+            return
     elif cmd == 0x1B:
         out["event"] = "tone"
         out["payload"] = payload_hex
@@ -302,7 +398,8 @@ async def get_status():
 
 
 @app.post("/api/connect")
-async def connect_port(port: str, baudrate: int = 115200):
+async def connect_port(port: str, baudrate: int = 115200, model: str = "ic9700"):
+    set_rig_model(model)
     try:
         switch_transport(CIVSerial())
         await asyncio.to_thread(current_transport.open, port, baudrate)
@@ -314,7 +411,9 @@ async def connect_port(port: str, baudrate: int = 115200):
 
 
 @app.post("/api/connect_lan")
-async def connect_lan(host: str, username: str = "", password: str = "", control_port: int = 50001, civ_port: int = 50002):
+async def connect_lan(host: str, username: str = "", password: str = "", control_port: int = 50001, civ_port: int = 50002, model: str = "ic9700"):
+    set_rig_model(model)
+    # IC-705 支持通过 WLAN 走同一 Icom UDP 协议（wfview 兼容），不拦截
     try:
         switch_transport(LanCIVTransport())
         await asyncio.to_thread(current_transport.open, host, username, password, control_port, civ_port)
@@ -354,12 +453,13 @@ async def websocket_endpoint(websocket: WebSocket):
                 if action == "connect":
                     port = msg.get("port", "COM1")
                     baud = msg.get("baudrate", 115200)
+                    set_rig_model(msg.get("model", "ic9700"))
                     try:
                         switch_transport(CIVSerial())
                         await asyncio.to_thread(current_transport.open, port, baud)
                         await asyncio.sleep(0.1)
                         controller.read_id()
-                        await websocket.send_text(json.dumps({"type": "connection", "connected": True, "mode": "serial"}))
+                        await websocket.send_text(json.dumps({"type": "connection", "connected": True, "mode": "serial", "model": current_model}))
                     except Exception as e:
                         await websocket.send_text(json.dumps({"type": "connection", "connected": False, "error": str(e)}))
 
@@ -369,12 +469,14 @@ async def websocket_endpoint(websocket: WebSocket):
                     password = msg.get("password", "")
                     control_port = msg.get("control_port", 50001)
                     civ_port = msg.get("civ_port", 50002)
+                    set_rig_model(msg.get("model", "ic9700"))
+                    # IC-705 支持通过 WLAN 走同一 Icom UDP 协议（wfview 兼容），不拦截
                     try:
                         switch_transport(LanCIVTransport())
                         await asyncio.to_thread(current_transport.open, host, username, password, control_port, civ_port)
                         await asyncio.sleep(0.1)
                         controller.read_id()
-                        await websocket.send_text(json.dumps({"type": "connection", "connected": True, "mode": "lan"}))
+                        await websocket.send_text(json.dumps({"type": "connection", "connected": True, "mode": "lan", "model": current_model}))
                     except Exception as e:
                         await websocket.send_text(json.dumps({"type": "connection", "connected": False, "error": str(e)}))
 
@@ -413,15 +515,6 @@ async def websocket_endpoint(websocket: WebSocket):
 
                 elif action == "memory":
                     controller.select_memory(int(msg["channel"]))
-
-                elif action == "memory_write":
-                    controller.memory_write()
-
-                elif action == "memory_copy_vfo":
-                    controller.memory_copy_vfo()
-
-                elif action == "memory_clear":
-                    controller.memory_clear()
 
                 elif action == "scan":
                     scan_type = msg.get("type", "cancel")
@@ -493,8 +586,11 @@ async def websocket_endpoint(websocket: WebSocket):
                 elif action == "set_1a_05":
                     item = int(msg["item"], 0) if isinstance(msg["item"], str) else int(msg["item"])
                     val = msg["value"]
+                    ritem = to_radio_item(item)
                     if isinstance(val, int):
-                        if item in BCD_ITEMS:
+                        if item in VALUE_SWAP_ITEMS and val in (0, 1):
+                            val = 1 - val  # SPEECH Language 0/1 reversed on IC-705
+                        if is_bcd_item(ritem):
                             data = int_to_bcd2(val)
                         elif val <= 255:
                             data = bytes([val])
@@ -504,11 +600,11 @@ async def websocket_endpoint(websocket: WebSocket):
                         data = bytes(val)
                     else:
                         data = bytes([val])
-                    controller.set_1a_05(item, data)
+                    controller.set_1a_05(ritem, data)
 
                 elif action == "read_1a_05":
                     item = int(msg["item"], 0) if isinstance(msg["item"], str) else int(msg["item"])
-                    controller.read_1a_05(item)
+                    controller.read_1a_05(to_radio_item(item))
 
                 elif action == "set_scan_resume":
                     controller.set_scan_resume(msg.get("on", False))
@@ -541,7 +637,7 @@ async def websocket_endpoint(websocket: WebSocket):
                             controller.read_frequency()
                             controller.read_mode()
                         elif t == "sat_sub_freqs":
-                            controller.read_band_selection(0x01)
+                            controller.ser.send(0x07, data=bytes([0xD2, 0x01]))  # read sub band
                         elif t == "split":
                             controller.read_split()
                         elif t == "tuning_step":
@@ -553,13 +649,13 @@ async def websocket_endpoint(websocket: WebSocket):
                         elif t == "tx_power_setting":
                             controller.read_tx_power_setting()
                         elif t == "rit":
-                            controller.read_rit()
+                            controller.ser.send(0x21, data=bytes([0x01]))
                         elif t.startswith("level_"):
                             controller.read_level(int(t.split("_")[1], 16))
                         elif t.startswith("func_"):
                             controller.read_function(int(t.split("_")[1], 16))
                         elif t.startswith("1a_"):
-                            controller.read_1a_05(int(t.split("_")[1], 16))
+                            controller.read_1a_05(to_radio_item(int(t.split("_")[1], 16)))
 
                 elif action == "poll_panel":
                     reads = msg.get("reads", [])
@@ -575,7 +671,7 @@ async def websocket_endpoint(websocket: WebSocket):
                         elif typ == "function" and sub is not None:
                             threading.Timer(delay * 0.03, lambda s=sub: controller.read_function(s)).start()
                         elif typ == "1a_05" and item is not None:
-                            threading.Timer(delay * 0.03, lambda i=item: controller.read_1a_05(i)).start()
+                            threading.Timer(delay * 0.03, lambda i=item: controller.read_1a_05(to_radio_item(i))).start()
                         elif typ == "special":
                             if tgt == "freq":
                                 threading.Timer(delay * 0.03, controller.read_frequency).start()
@@ -625,7 +721,7 @@ if __name__ == "__main__":
             port = int(args[i + 1])
 
     url = f"http://{host}:{port}"
-    print(f"\n  IC-9700 CI-V 控制器")
+    print(f"\n  IC-9700/IC-705 CI-V 控制器")
     print(f"  浏览器访问: {url}")
     print(f"  按 Ctrl+C 退出\n")
 

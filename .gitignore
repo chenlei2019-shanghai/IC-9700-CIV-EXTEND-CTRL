@@ -3,3 +3,5 @@ __pycache__/
 app.log
 build/
 *.spec
+*.exe
+dist/

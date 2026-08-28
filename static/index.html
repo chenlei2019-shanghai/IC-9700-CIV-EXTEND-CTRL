@@ -10,12 +10,16 @@
 <div class="app-layout">
   <!-- Header -->
   <header class="app-header">
-    <h1>📻 IC-9700 CI-V 控制器</h1>
+    <h1>📻 IC-9700/IC-705 CI-V 控制器</h1>
     <div class="header-controls">
       <span id="conn-pill" class="status-pill err">未连接</span>
+      <select id="rig-model">
+        <option value="ic9700">IC-9700</option>
+        <option value="ic705">IC-705</option>
+      </select>
       <select id="conn-type">
         <option value="serial">串口</option>
-        <option value="lan">LAN</option>
+        <option value="lan">LAN/WLAN</option>
       </select>
       <!-- Serial controls -->
       <span id="serial-ctrls">
@@ -182,7 +186,7 @@
         </div>
       </div>
 
-      <div class="tree-node">
+      <div class="tree-node" data-rigs="ic9700">
         <div class="tree-branch" data-expand><span class="arrow">▶</span><span class="icon">🛰️</span><span class="label">卫星操作</span></div>
         <div class="tree-children">
           <div class="tree-leaf" data-target="sat">卫星面板</div>
@@ -229,6 +233,25 @@
             <div class="meter-box"><div class="label">Id (电流)</div><div id="meter-id" class="bar"><div class="fill"></div></div><div class="value" id="val-id">0 A</div></div>
           </div>
         </div>
+        <div class="card">
+          <h3>关于</h3>
+          <p style="color:#94a3b8;font-size:0.85rem;line-height:1.7">
+            <b>作者: BH4FUO</b> &nbsp;|&nbsp; License: MIT &nbsp;|&nbsp; Copyright (c) 2025 BH4FUO<br>
+            本工具为业余无线电爱好者开源项目，仅供个人学习和业余通信使用。
+          </p>
+          <h4 style="margin-top:10px">引用文档 / 参考资料</h4>
+          <ul style="color:#94a3b8;font-size:0.8rem;line-height:1.8;padding-left:18px">
+            <li>Icom <b>IC-9700 CI-V Reference Guide</b> / <b>IC-705 CI-V Reference Guide</b>（Icom 官方 CI-V 协议文档）</li>
+            <li>IC-9700 中文操作手册 / 中文高级操作手册（Icom 官方）</li>
+            <li><b>Hamlib</b> 源码（github.com/Hamlib/Hamlib）— icom.c VFO 映射逻辑参考</li>
+            <li><b>gp2hmlb</b>（DL7OAP, github.com/dl7oap/gp2hmlb）— GPredict↔Hamlib 中间层参考方案</li>
+            <li><b>wfview</b> 社区 Icom LAN UDP 协议文档 — 网络认证/CI-V 隧道实现参考</li>
+            <li><b>GPredict</b> Wiki（github.com/csete/gpredict/wiki）— rigctld 协议与 Duplex TRX 配置</li>
+          </ul>
+          <p style="color:#64748b;font-size:0.75rem;margin-top:8px">
+            ICOM、IC-9700、wfview、GPredict、Hamlib 等均为其各自所有者的商标。
+          </p>
+        </div>
       </section>
 
       <!-- FREQ/MODE -->
@@ -242,6 +265,7 @@
             <button data-cmd="mode" data-val="0x03">CW</button>
             <button data-cmd="mode" data-val="0x04">RTTY</button>
             <button data-cmd="mode" data-val="0x05">FM</button>
+            <button data-cmd="mode" data-val="0x06" data-rigs="ic705">WFM</button>
             <button data-cmd="mode" data-val="0x07">CW-R</button>
             <button data-cmd="mode" data-val="0x08">RTTY-R</button>
             <button data-cmd="mode" data-val="0x17">DV</button>
@@ -599,8 +623,8 @@
         <div class="card"><h3>DTMF / NB设置 / 功率限制</h3><div id="dtmf-container"></div></div>
       </section>
 
-      <!-- SATELLITE -->
-      <section class="panel-section" id="panel-sat">
+      <!-- SATELLITE (IC-9700 only) -->
+      <section class="panel-section" id="panel-sat" data-rigs="ic9700">
         <div class="card">
           <h3>🛰️ 卫星 VFO 控制</h3>
           <p style="color:#94a3b8;font-size:0.8rem;margin-bottom:10px">
@@ -662,6 +686,6 @@
   </div>
 </div>
 
-<script src="/static/app.js?v=20260607"></script>
+<script src="/static/app.js?v=20260828"></script>
 </body>
 </html>

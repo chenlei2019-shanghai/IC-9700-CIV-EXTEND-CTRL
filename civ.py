@@ -12,9 +12,15 @@ import logging
 
 logger = logging.getLogger("civ")
 
-# IC-9700 default CI-V address
+# IC-9700 default CI-V address (IC-705 default: 0xA4)
 RADIO_ADDR = 0xA2
 CONTROLLER_ADDR = 0xE0
+
+
+def set_radio_addr(addr: int):
+    """Set the transceiver CI-V address (0xA2=IC-9700, 0xA4=IC-705)."""
+    global RADIO_ADDR
+    RADIO_ADDR = addr
 
 PREAMBLE = bytes([0xFE, 0xFE])
 END_CODE = 0xFD
@@ -29,6 +35,7 @@ MODES = {
     0x03: "CW",
     0x04: "RTTY",
     0x05: "FM",
+    0x06: "WFM",   # IC-705 only
     0x07: "CW-R",
     0x08: "RTTY-R",
     0x17: "DV",
@@ -290,9 +297,6 @@ class CIVController:
     def read_band_selection(self, band: int = 0x00):
         return self.ser.send(0x07, data=bytes([0xD2, band]))
 
-    def read_rit(self):
-        return self.ser.send(0x21, data=bytes([0x01]))
-
     # --- Memory ---
     def select_memory(self, channel: int):
         ch_high = (channel >> 8) & 0xFF
@@ -354,7 +358,12 @@ class CIVController:
 
     # --- Levels (0x14 subcmd) ---
     def set_level(self, subcmd: int, value: int):
-        data = bytes([subcmd, (value >> 8) & 0xFF, value & 0xFF])
+        # Level values are 2-byte BCD ("0000 ~ 0255"), e.g. 255 -> 0x02 0x55.
+        # Sending raw binary (e.g. 0x00 0xFF) is rejected (NG) by the radio.
+        value = max(0, min(255, int(value)))
+        hi = ((value // 1000) % 10) << 4 | ((value // 100) % 10)
+        lo = ((value // 10) % 10) << 4 | (value % 10)
+        data = bytes([subcmd, hi, lo])
         return self.ser.send(0x14, data=data)
 
     def read_level(self, subcmd: int):

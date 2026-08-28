@@ -27,6 +27,44 @@ function connectWS() {
 }
 
 let connMode = "serial";
+let rigModel = "ic9700";
+
+// Selects whose option lists differ between rigs (item hex -> per-model options)
+const RIG_SELECT_OPTIONS = {
+  // DATA OFF MOD / DATA MOD: 9700 = MIC/ACC/USB/LAN based, 705 = MIC/USB/WLAN based
+  "0115": { ic9700: ["MIC","ACC","MIC,ACC","USB","MIC,USB","LAN"], ic705: ["MIC","USB","MIC,USB","WLAN"] },
+  "0116": { ic9700: ["MIC","ACC","MIC,ACC","USB","MIC,USB","LAN"], ic705: ["MIC","USB","MIC,USB","WLAN"] },
+  // GPS Select: 9700 01=External GPS, 705 01=ON (internal GPS)
+  "0255": { ic9700: ["OFF","外接GPS","手动"], ic705: ["OFF","GPS ON (内置)","手动"] },
+};
+
+// Sliders whose range differs between rigs (item hex -> per-model max)
+const RIG_SLIDER_MAX = {
+  // REF Adjust: 9700 = 0~255 (separate FINE item), 705 = 0~511 (coarse+fine combined)
+  "0072": { ic9700: 255, ic705: 511 },
+};
+
+function applyRigModel(model) {
+  rigModel = model === "ic705" ? "ic705" : "ic9700";
+  // Show/hide rig-specific elements
+  document.querySelectorAll("[data-rigs]").forEach(el => {
+    el.style.display = el.dataset.rigs === rigModel ? "" : "none";
+  });
+  // Rebuild selects with rig-specific option lists
+  for (const [hex, per] of Object.entries(RIG_SELECT_OPTIONS)) {
+    const sel = document.getElementById("ext-" + hex);
+    if (!sel) continue;
+    const opts = per[rigModel] || per.ic9700;
+    sel.innerHTML = opts.map((o,i)=>`<option value="${i}">${o}</option>`).join("");
+  }
+  // Adjust slider ranges
+  for (const [hex, per] of Object.entries(RIG_SLIDER_MAX)) {
+    const s = document.getElementById("exts-" + hex);
+    if (s) s.max = per[rigModel] || per.ic9700;
+  }
+  // Note: IC-705 has no wired LAN port, but supports the same Icom UDP
+  // protocol over WLAN (wfview-compatible), so LAN mode stays available.
+}
 
 function setConnPill(connected, mode) {
   const el = document.getElementById("conn-pill");
@@ -78,6 +116,7 @@ function handleMessage(msg) {
   if (msg.type === "civ_response") handleCIV(msg);
   else if (msg.type === "connection") {
     setConnPill(msg.connected, msg.mode || connMode);
+    if (msg.model) applyRigModel(msg.model);
     if (msg.connected && (msg.mode === "lan" || connMode === "lan")) {
       saveLanSettings();
     }
@@ -163,9 +202,10 @@ function updateRITButton(on) {
 
 function updateExtControl(item, value) {
   const itemHex = item.toString(16).padStart(4, '0').toLowerCase();
-  const v = Array.isArray(value) ? (value.length >= 2 ? (value[0] << 8) | value[1] : (value.length > 0 ? value[0] : 0)) : value;
   const el = document.getElementById("ext-" + itemHex);
   if (el) {
+    // value from backend: either integer (BCD decoded) or byte list
+    const v = Array.isArray(value) ? (value.length >= 2 ? (value[0] << 8) | value[1] : (value.length > 0 ? value[0] : 0)) : value;
     if (el.tagName === "BUTTON") {
       el.textContent = v ? "ON" : "OFF";
       el.className = "btn-toggle " + (v ? "on" : "off");
@@ -179,13 +219,11 @@ function updateExtControl(item, value) {
   // Try slider (1A)
   const sliderId = "exts-" + itemHex;
   const s = document.getElementById(sliderId);
-  if (s) {
+  if (s && value !== undefined && value !== null) {
+    const v = Array.isArray(value) ? (value.length >= 2 ? (value[0] << 8) | value[1] : value[0]) : value;
     s.value = v;
     const n = document.getElementById(sliderId + "-num");
-    if (n) {
-      const max = parseInt(s.max) || 255;
-      n.textContent = Math.round(v * 100 / max);
-    }
+    if (n) n.textContent = v;
     return;
   }
 }
@@ -196,10 +234,7 @@ function updateSlider(sub, val) {
   if (s) {
     s.value = val;
     const n = document.getElementById(id + "-num");
-    if (n) {
-      const max = parseInt(s.max) || 255;
-      n.textContent = Math.round(val * 100 / max);
-    }
+    if (n) n.textContent = val;
   }
 }
 
@@ -346,14 +381,12 @@ function refreshActivePanel(panelId) {
 function makeSlider(container, subcmd, name, min=0, max=255) {
   const id = `slider-${subcmd.toString(16).padStart(2,'0')}`;
   const div = document.createElement("div"); div.className = "slider-box";
-  const initPct = Math.round(128 * 100 / max);
-  div.innerHTML = `<div class="top"><span class="name">${name}</span><span class="num" id="${id}-num">${initPct}</span></div>
+  div.innerHTML = `<div class="top"><span class="name">${name}</span><span class="num" id="${id}-num">128</span></div>
     <input type="range" id="${id}" min="${min}" max="${max}" value="128" data-sub="${subcmd}">`;
   container.appendChild(div);
   const s = div.querySelector("input");
   s.addEventListener("input", ()=>{
-    const pct = Math.round(parseInt(s.value) * 100 / max);
-    document.getElementById(id+"-num").textContent = pct;
+    document.getElementById(id+"-num").textContent = s.value;
   });
   s.addEventListener("change", ()=>{ sendCmd("set_level", {subcmd: parseInt(s.dataset.sub), value: parseInt(s.value)}); });
 }
@@ -409,15 +442,13 @@ function makeToggle(container, item, name) {
 function makeSlider1A(container, item, name, min=0, max=255) {
   const id = `exts-${item.toString(16).padStart(4,'0')}`;
   const midVal = Math.floor((min+max)/2);
-  const midPct = Math.round(midVal * 100 / max);
   const div = document.createElement("div"); div.className = "slider-box";
-  div.innerHTML = `<div class="top"><span class="name">${name}</span><span class="num" id="${id}-num">${midPct}</span></div>
+  div.innerHTML = `<div class="top"><span class="name">${name}</span><span class="num" id="${id}-num">${midVal}</span></div>
     <input type="range" id="${id}" min="${min}" max="${max}" value="${midVal}" data-item="${item}">`;
   container.appendChild(div);
   const s = div.querySelector("input");
   s.addEventListener("input", ()=>{
-    const pct = Math.round(parseInt(s.value) * 100 / max);
-    document.getElementById(id+"-num").textContent = pct;
+    document.getElementById(id+"-num").textContent = s.value;
   });
   s.addEventListener("change", ()=>{ sendCmd("set_1a_05", {item: item, value: parseInt(s.value)}); });
 }
@@ -827,8 +858,10 @@ document.addEventListener("DOMContentLoaded", () => {
   document.getElementById("conn-type").addEventListener("change", updateConnTypeUI);
   document.getElementById("btn-connect").addEventListener("click", ()=>{
     const type = document.getElementById("conn-type").value;
+    const model = document.getElementById("rig-model").value;
     if (type === "lan") {
       sendCmd("connect_lan", {
+        model: model,
         host: document.getElementById("lan-host").value,
         username: document.getElementById("lan-user").value,
         password: document.getElementById("lan-pass").value,
@@ -836,9 +869,10 @@ document.addEventListener("DOMContentLoaded", () => {
         civ_port: 50002
       });
     } else {
-      sendCmd("connect", {port: document.getElementById("port-select").value, baudrate: parseInt(document.getElementById("baud-select").value)});
+      sendCmd("connect", {model: model, port: document.getElementById("port-select").value, baudrate: parseInt(document.getElementById("baud-select").value)});
     }
   });
+  document.getElementById("rig-model").addEventListener("change", (e)=>applyRigModel(e.target.value));
   document.getElementById("btn-disconnect").addEventListener("click", ()=>sendCmd("disconnect"));
 
   document.getElementById("btn-set-freq").addEventListener("click", ()=>{
@@ -863,8 +897,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
   const _safe = (id, fn) => { const el = document.getElementById(id); if (el) el.addEventListener("click", fn); };
 
-  _safe("btn-rit-on", function(){ sendCmd("set_rit", {on:true}); updateRITButton(true); });
-  _safe("btn-rit-off", function(){ sendCmd("set_rit", {on:false}); updateRITButton(false); });
+  _safe("btn-rit-on", function(){ sendCmd("set_rit", {on:true}); this.textContent="RIT ON"; this.className="btn-toggle on"; });
   _safe("btn-rit-set", ()=>{
     const f = parseInt(document.getElementById("input-rit").value);
     const dir = document.getElementById("sel-rit-dir").value;
@@ -875,9 +908,10 @@ document.addEventListener("DOMContentLoaded", () => {
   _safe("btn-xfc-off", function(){ sendCmd("set_xfc", {on:false}); this.textContent="XFC OFF"; this.className="btn-toggle off"; });
 
   document.getElementById("btn-tx-pwr-set-on").addEventListener("click", function(){
-    const next = this.textContent === "TX输出 OFF";
-    sendCmd("set_tx_power_setting", {on: next});
-    updateTXPowerButton(next ? 1 : 0);
+    const on = this.textContent === "TX输出 OFF";
+    sendCmd("set_tx_power_setting", {on: !on});
+    this.textContent = on ? "TX输出 ON" : "TX输出 OFF";
+    this.className = "btn-toggle " + (on ? "on" : "off");
   });
   document.getElementById("btn-read-tx-pwr").addEventListener("click", ()=>sendCmd("read_tx_power_setting"));
 
@@ -994,8 +1028,8 @@ document.addEventListener("DOMContentLoaded", () => {
   });
   document.getElementById("btn-sat-sub").addEventListener("click", function() {
     sendCmd("vfo", {vfo: "sub"});
-    document.getElementById("btn-sat-main").className = "btn-toggle off";
-    this.className = "btn-toggle on";
+    this.className = "btn-toggle off";
+    document.getElementById("btn-sat-sub").className = "btn-toggle on";
   });
   document.getElementById("btn-sat-vfo-eq").addEventListener("click", ()=>sendCmd("vfo", {vfo: "equal"}));
   document.getElementById("btn-sat-vfo-ex").addEventListener("click", ()=>{
