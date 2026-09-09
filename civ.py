@@ -145,9 +145,6 @@ class CIVSerial:
         self.read_thread = None
         self.running = False
         self.callback = None
-        self._pending = {}
-        self._pending_lock = threading.Lock()
-        self._seq = 0
 
     def list_ports(self):
         return [p.device for p in serial.tools.list_ports.comports()]
@@ -213,23 +210,16 @@ class CIVSerial:
                 if to_addr in (CONTROLLER_ADDR, 0x00) and from_addr in (RADIO_ADDR, 0x00):
                     if frame[4] == OK_CODE:
                         logger.info("CI-V RX: OK")
-                        self._resolve_pending("ok", True)
                         if self.callback:
                             self.callback({"type": "ok"})
                     elif frame[4] == NG_CODE:
                         logger.info("CI-V RX: NG")
-                        self._resolve_pending("ng", True)
                         if self.callback:
                             self.callback({"type": "ng"})
             return
         logger.info("CI-V RX: cmd=0x%02X payload=%s", parsed["cmd"], parsed["payload"].hex().upper())
         if self.callback:
             self.callback({"type": "data", **parsed})
-
-    def _resolve_pending(self, key, value):
-        with self._pending_lock:
-            if key in self._pending:
-                self._pending[key] = value
 
     def send_raw(self, data: bytes):
         with self.lock:
@@ -243,25 +233,6 @@ class CIVSerial:
     def send(self, cmd: int, subcmd: int = None, data: bytes = None) -> bool:
         frame = build_command(cmd, subcmd, data)
         return self.send_raw(frame)
-
-    def transact(self, cmd: int, subcmd: int = None, data: bytes = None, timeout: float = 0.5) -> dict:
-        """Send a command and wait for response."""
-        seq = self._seq
-        self._seq += 1
-        key = f"resp_{seq}"
-        with self._pending_lock:
-            self._pending[key] = None
-
-        frame = build_command(cmd, subcmd, data)
-        self.send_raw(frame)
-
-        start = time.time()
-        while time.time() - start < timeout:
-            with self._pending_lock:
-                # This is a simplified approach; in real use we'd match by cmd
-                pass
-            time.sleep(0.01)
-        return None
 
 
 class CIVController:
@@ -400,8 +371,6 @@ class CIVController:
     def read_comp_meter(self): return self.read_meter(0x14)
     def read_vd_meter(self): return self.read_meter(0x15)
     def read_id_meter(self): return self.read_meter(0x16)
-    def read_tx_power_setting(self):
-        return self.ser.send(0x24, data=bytes([0x00]))
 
     # --- Functions (0x16 subcmd) ---
     def set_function(self, subcmd: int, value: int):
@@ -436,7 +405,7 @@ class CIVController:
     def set_satellite_mode(self, v): return self.set_function(0x5A, v)
     def set_dsql_csql(self, v): return self.set_function(0x5B, v)
     def set_gps_tx_mode(self, v): return self.set_function(0x5C, v)
-    def set_tone_squelch_func(self, v): return self.set_function(0x5C, v)  # Same cmd different range
+    def set_tone_squelch_func(self, v): return self.set_function(0x5D, v)  # 00=OFF,01=TONE,02=TSQL,03=DTCS,06~09 组合
     def set_ip_plus(self, v): return self.set_function(0x65, v)
 
     # --- Power ---

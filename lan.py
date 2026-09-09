@@ -562,8 +562,9 @@ class LanCIVTransport:
         )
         await self._control.send_tracked(login_pkt)
 
-        # Wait for login response (0x60 bytes)
-        while True:
+        # Wait for login response (0x60 bytes); give up after too many
+        # unrelated packets so a misbehaving peer can't hang us forever
+        for _ in range(20):
             data = await self._control.recv_packet(timeout=5.0)
             if len(data) >= 0x60:
                 error = struct.unpack_from("<I", data, 0x30)[0]
@@ -576,6 +577,8 @@ class LanCIVTransport:
                         )
                     logger.info("Login OK token=0x%08X", self._token)
                     break
+        else:
+            raise ConnectionError("No valid login response after 20 packets")
 
         # 3. Pre-bind CI-V socket so we can report its local port in conninfo
         civ_sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
@@ -593,8 +596,8 @@ class LanCIVTransport:
         )
         await self._control.send_tracked(conninfo)
 
-        # Wait for status response (0x50 bytes)
-        while True:
+        # Wait for status response (0x50 bytes); bounded like login above
+        for _ in range(20):
             data = await self._control.recv_packet(timeout=5.0)
             if len(data) >= 0x50:
                 error = struct.unpack_from("<I", data, 0x30)[0]
@@ -602,6 +605,8 @@ class LanCIVTransport:
                     raise ConnectionError("ConnInfo rejected")
                 logger.info("ConnInfo accepted")
                 break
+        else:
+            raise ConnectionError("No valid ConnInfo response after 20 packets")
 
         # 5. Token ACK
         ack = _build_token_ack(
