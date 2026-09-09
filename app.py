@@ -709,6 +709,26 @@ async def websocket_endpoint(websocket: WebSocket):
 if __name__ == "__main__":
     import uvicorn
 
+    def _hide_console():
+        """Hide the console/log window for the packaged EXE.
+
+        Logs still go to app.log via FileHandler; only the visible window
+        is hidden so end users are not distracted by it. Dev mode
+        (python app.py) keeps the console visible.
+        """
+        if not getattr(sys, "frozen", False):
+            return
+        try:
+            import ctypes
+            hwnd = ctypes.windll.kernel32.GetConsoleWindow()
+            if hwnd:
+                ctypes.windll.user32.ShowWindow(hwnd, 0)  # SW_HIDE
+                logging.info("Console window hidden (frozen EXE mode)")
+        except Exception:
+            pass
+
+    _hide_console()
+
     host = "127.0.0.1"
     port = 8080
 
