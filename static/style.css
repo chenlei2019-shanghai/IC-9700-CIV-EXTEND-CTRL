@@ -28,6 +28,7 @@ html, body {
 }
 .status-pill.ok { background: #064e3b; color: #34d399; }
 .status-pill.err { background: #450a0a; color: #f87171; }
+.status-pill.warn { background: #451a03; color: #fbbf24; }
 
 input, select {
   background: #0f172a; color: #e2e8f0; border: 1px solid #374151;

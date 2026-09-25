@@ -5,3 +5,6 @@ build/
 *.spec
 *.exe
 dist/
+tle_cache.json
+connect_settings.json
+*.pdf

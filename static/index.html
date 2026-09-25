@@ -13,6 +13,8 @@
     <h1>📻 IC-9700/IC-705 CI-V 控制器</h1>
     <div class="header-controls">
       <span id="conn-pill" class="status-pill err">未连接</span>
+      <button id="btn-tz" class="btn-toggle" title="UTC / 本地时间切换">UTC</button>
+      <button id="btn-exit" class="btn-danger" title="停止跟踪并退出后台程序">退出程序</button>
       <select id="rig-model">
         <option value="ic9700">IC-9700</option>
         <option value="ic705">IC-705</option>
@@ -626,31 +628,165 @@
       <!-- SATELLITE (IC-9700 only) -->
       <section class="panel-section" id="panel-sat" data-rigs="ic9700">
         <div class="card">
-          <h3>🛰️ 卫星 VFO 控制</h3>
+          <h3>🛰️ 卫星多普勒跟踪 <span id="sat-run-pill" class="status-pill err">未跟踪</span></h3>
           <p style="color:#94a3b8;font-size:0.8rem;margin-bottom:10px">
-            使用 HRD/Wfview 控制频率和 PTT，此页面用于管理 MAIN/SUB 状态。<br>
-            建议 <b>不要开启电台内置卫星模式</b>，直接使用 VFO 模式：MAIN=RX下行, SUB=TX上行。
+            纯软件双 VFO 多普勒跟踪（与 CSN S.A.T. 同思路）：<b>不使用电台卫星模式</b>，普通 VFO 模式下
+            <b>MAIN = 上行(TX)</b>、<b>SUB = 下行(RX)</b>，Dualwatch 双收，发射时可监听下行。<br>
+            电台会自动设置：卫星模式 OFF / Dualwatch ON / SUB 发射静音 OFF（喇叭+USB+LAN）/ 双波段模式与亚音。<br>
+            <b style="color:#fbbf24">wfview 全双工 QSO：</b>RX Codec 选 <b>LPCM 2ch 16bit（立体声）</b>，MAIN/SUB 音频分别在左右声道；
+            用系统音量平衡只听 SUB 侧即是下行，PTT 从 MAIN 发射。
           </p>
           <div class="sat-display">
             <div class="sat-vfo" id="sat-main-display">
-              <div class="sat-band-label">MAIN — RX 下行 ▼</div>
-              <div class="sat-freq" id="sat-main-freq">---.---.---</div>
-              <div class="sat-mode" id="sat-main-mode">---</div>
+              <div class="sat-band-label" id="sat-main-label">MAIN — TX 上行 ▲</div>
+              <div class="sat-freq" id="sat-main-freq">---.------</div>
+              <div class="sat-mode"><span id="sat-main-mode">---</span> <span class="sat-shift" id="sat-main-shift"></span></div>
             </div>
             <div class="sat-divider"></div>
             <div class="sat-vfo" id="sat-sub-display">
-              <div class="sat-band-label">SUB — TX 上行 ▲</div>
-              <div class="sat-freq" id="sat-sub-freq">---.---.---</div>
-              <div class="sat-mode" id="sat-sub-mode">---</div>
+              <div class="sat-band-label" id="sat-sub-label">SUB — RX 下行 ▼</div>
+              <div class="sat-freq" id="sat-sub-freq">---.------</div>
+              <div class="sat-mode"><span id="sat-sub-mode">---</span> <span class="sat-shift" id="sat-sub-shift"></span></div>
             </div>
           </div>
+          <div id="sat-error" style="color:#f87171;font-size:0.8rem;margin-top:6px;display:none"></div>
+          <div class="sat-info" id="sat-geo">方位 ---° · 仰角 ---° · 距离率 --- m/s · 距离 --- km</div>
+          <div class="sat-info" id="sat-pass-info">过境预测: 未计算</div>
+          <div id="sat-pass-list" style="max-height:130px;overflow-y:auto;font-size:0.78rem;margin-top:6px;display:none;color:#94a3b8"></div>
+          <canvas id="sat-pass-canvas" width="880" height="220" style="width:100%;max-width:880px;height:auto;margin-top:8px;background:#0f172a;border-radius:6px;display:none"></canvas>
           <div style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap">
-            <button id="btn-sat-monitor" class="btn-toggle off">开始监控</button>
-            <button id="btn-sat-main" class="btn-toggle on">选 MAIN</button>
-            <button id="btn-sat-sub" class="btn-toggle off">选 SUB</button>
-            <button id="btn-sat-vfo-ex" class="btn-toggle">A ↔ B</button>
-            <button id="btn-sat-vfo-eq" class="btn-toggle">A = B</button>
+            <button id="btn-sat-start" class="btn-primary">▶ 开始跟踪</button>
+            <button id="btn-sat-stop" class="btn-danger" style="opacity:0.35" disabled>■ 停止</button>
+            <button id="btn-sat-enable" class="btn-toggle on">更新 ON</button>
+            <button id="btn-sat-lock" class="btn-toggle on">LOCK VFO</button>
+            <button id="btn-sat-center" class="btn-toggle">CENTER</button>
+            <button id="btn-sat-pass" class="btn-toggle">过境预测</button>
           </div>
+          <div style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap;align-items:center">
+            <span style="color:#94a3b8;font-size:0.8rem">手动偏移:</span>
+            <button class="btn-toggle sat-nudge" data-which="up" data-d="-1000">上行 -1k</button>
+            <button class="btn-toggle sat-nudge" data-which="up" data-d="1000">上行 +1k</button>
+            <button class="btn-toggle sat-nudge" data-which="down" data-d="-1000">下行 -1k</button>
+            <button class="btn-toggle sat-nudge" data-which="down" data-d="1000">下行 +1k</button>
+            <span class="sat-shift" id="sat-offsets">up +0 Hz · down +0 Hz</span>
+          </div>
+          <div style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap;align-items:center">
+            <span style="color:#94a3b8;font-size:0.8rem">🔊 RX 音频:</span>
+            <select id="audio-dev" style="max-width:220px"></select>
+            <button id="btn-audio-ch1" class="btn-toggle">CH1·MAIN</button>
+            <button id="btn-audio-ch2" class="btn-toggle">CH2·SUB</button>
+            <button id="btn-audio-stereo" class="btn-toggle on">立体声</button>
+            <button id="btn-audio-toggle" class="btn-primary">▶ 收听</button>
+            <span id="audio-msg" style="color:#64748b;font-size:0.75rem"></span>
+          </div>
+          <div style="margin-top:6px;font-size:0.7rem;color:#64748b">
+            <div style="display:flex;gap:6px;align-items:center;margin-bottom:3px">
+              <span style="width:30px">CH1</span>
+              <div style="flex:1;max-width:400px;background:#0f172a;border-radius:3px;height:9px">
+                <div id="audio-meter-l" style="height:100%;width:0%;border-radius:3px;background:#34d399"></div>
+              </div>
+            </div>
+            <div style="display:flex;gap:6px;align-items:center">
+              <span style="width:30px">CH2</span>
+              <div style="flex:1;max-width:400px;background:#0f172a;border-radius:3px;height:9px">
+                <div id="audio-meter-r" style="height:100%;width:0%;border-radius:3px;background:#34d399"></div>
+              </div>
+            </div>
+          </div>
+          <p style="color:#64748b;font-size:0.75rem;margin-top:8px">
+            提示: 微调下行请用电台的 <b>RIT</b> 旋钮（不动主拨盘）；转动 SUB 拨盘时 LOCK VFO 会把变化反向镜像到上行（反转转发器）。CENTER 清除全部手动偏移。
+          </p>
+        </div>
+
+        <div class="card">
+          <h3>转发器配置</h3>
+          <div class="row" style="flex-wrap:wrap;gap:8px">
+            <label>🔍 <input type="text" id="sat-search" style="width:140px" placeholder="搜索卫星..."></label>
+            <label>预设 <select id="sat-preset" style="min-width:200px"></select></label>
+            <label id="sat-transp-wrap" style="display:none">转发器 <select id="sat-transp" style="min-width:180px"></select></label>
+            <label>卫星名(TLE) <input type="text" id="sat-name" list="sat-tle-datalist" style="width:150px" placeholder="如 SO-50"></label>
+            <datalist id="sat-tle-datalist"></datalist>
+          </div>
+          <div class="row" style="flex-wrap:wrap;gap:8px;margin-top:8px">
+            <label>上行 MHz <input type="text" id="sat-up" style="width:100px"></label>
+            <label>模式 <select id="sat-cfg-up-mode"><option>FM</option><option>USB</option><option>LSB</option><option>CW</option></select></label>
+            <label>亚音 <select id="sat-tone"><option value="">无</option></select></label>
+          </div>
+          <div class="row" style="flex-wrap:wrap;gap:8px;margin-top:8px">
+            <label>下行 MHz <input type="text" id="sat-down" style="width:100px"></label>
+            <label>模式 <select id="sat-cfg-down-mode"><option>FM</option><option>USB</option><option>LSB</option><option>CW</option></select></label>
+            <label><input type="checkbox" id="sat-invert"> 反转转发器</label>
+            <label>FM步进 <select id="sat-fm-step">
+              <option value="1" selected>1 Hz</option>
+              <option value="10">10 Hz</option>
+              <option value="100">100 Hz</option>
+              <option value="1000">1 kHz</option>
+              <option value="2500">2.5 kHz</option>
+              <option value="5000">5 kHz</option>
+            </select></label>
+          </div>
+          <div class="row" style="margin-top:8px">
+            <label style="color:#fbbf24"><input type="checkbox" id="sat-swap"> 主收听模式：MAIN=下行 (wfview 可听) / SUB=上行 <b>⚠ 此模式下请勿发射</b>（普通模式 PTT 从 MAIN 发出）</label>
+          </div>
+          <div class="row" style="margin-top:6px">
+            <label><input type="checkbox" id="sat-restore" checked> 停止跟踪时恢复电台原始状态（频率/模式/Dualwatch/静音/亚音/RIT）</label>
+          </div>
+          <div class="row" style="margin-top:8px;gap:8px">
+            <button id="btn-sat-apply" class="btn-primary">应用配置</button>
+            <span id="sat-cfg-msg" style="color:#94a3b8;font-size:0.8rem"></span>
+          </div>
+          <p style="color:#64748b;font-size:0.75rem;margin-top:6px">预设频率为转发器中心频率，过境前请对照 SatNOGS/AMSAT 核实；SSB 直线转发器在通联中沿通带微调即可。</p>
+        </div>
+
+        <div class="card">
+          <h3>⭐ 收藏与自动轮询</h3>
+          <div class="row" style="flex-wrap:wrap;gap:8px;align-items:center">
+            <button id="btn-sat-fav-add" class="btn-toggle">☆ 收藏当前卫星</button>
+            <button id="btn-sat-schedule" class="btn-toggle off">自动轮询 OFF</button>
+            <span style="color:#64748b;font-size:0.75rem">轮询只跟踪收藏夹，过境前 60s 自动开始、LOS 自动停止，不会打断手动跟踪</span>
+          </div>
+          <div id="sat-fav-list" style="margin-top:8px;display:flex;gap:6px;flex-wrap:wrap"></div>
+          <div class="row" style="flex-wrap:wrap;gap:8px;margin-top:10px;align-items:center">
+            <button id="btn-sat-fav-passes" class="btn-toggle">刷新过境总表</button>
+            <label>最小仰角 <input type="text" id="sat-fav-minel" value="5" style="width:44px">°</label>
+            <span id="sat-fav-pass-msg" style="color:#94a3b8;font-size:0.8rem"></span>
+          </div>
+          <div id="sat-fav-pass-table" style="margin-top:6px;font-size:0.8rem"></div>
+        </div>
+
+        <div class="card">
+          <h3>TLE 与观测点</h3>
+          <div class="row" style="flex-wrap:wrap;gap:8px">
+            <button id="btn-sat-tle" class="btn-toggle">从 CelesTrak 更新 TLE</button>
+            <button id="btn-sat-transp" class="btn-toggle">更新频率数据库 (SatNOGS)</button>
+            <label style="align-self:center"><input type="checkbox" id="sat-auto-tle"> 启动时自动更新</label>
+            <span id="sat-tle-msg" style="color:#94a3b8;font-size:0.8rem"></span>
+          </div>
+          <div class="row" style="margin-top:6px;gap:6px">
+            <input type="text" id="sat-tle-url" style="flex:1;min-width:280px" placeholder="自定义 TLE 更新 URL（留空 = CelesTrak amateur 分组）">
+          </div>
+          <div class="row" style="flex-wrap:wrap;gap:8px;margin-top:8px;align-items:center">
+            <span style="color:#94a3b8;font-size:0.8rem">旋转器 PstRotator (UDP 控制):</span>
+            <label><input type="checkbox" id="sat-rot-on"> 启用</label>
+            <input type="text" id="sat-rot-host" placeholder="127.0.0.1" style="width:110px">
+            <input type="text" id="sat-rot-port" placeholder="12000" style="width:64px">
+          </div>
+          <div class="row" style="flex-wrap:wrap;gap:8px;margin-top:8px">
+            <label>网格 <input type="text" id="sat-grid" style="width:80px" placeholder="PM01PE"></label>
+            <label>纬度 <input type="text" id="sat-lat" style="width:80px"></label>
+            <label>经度 <input type="text" id="sat-lon" style="width:80px"></label>
+            <label>海拔m <input type="text" id="sat-alt" style="width:60px"></label>
+            <button id="btn-sat-obs" class="btn-toggle">保存观测点</button>
+          </div>
+          <details style="margin-top:8px">
+            <summary style="color:#94a3b8;font-size:0.8rem;cursor:pointer">手动粘贴 TLE</summary>
+            <div class="row" style="flex-wrap:wrap;gap:6px;margin-top:6px">
+              <input type="text" id="sat-tle-name" placeholder="卫星名" style="width:120px">
+              <input type="text" id="sat-tle-l1" placeholder="第1行 1 ..." style="flex:1;min-width:280px">
+              <input type="text" id="sat-tle-l2" placeholder="第2行 2 ..." style="flex:1;min-width:280px">
+              <button id="btn-sat-tle-set" class="btn-toggle">导入</button>
+            </div>
+          </details>
         </div>
       </section>
 
@@ -686,6 +822,6 @@
   </div>
 </div>
 
-<script src="/static/app.js?v=20260828"></script>
+<script src="/static/app.js?v=20260915c"></script>
 </body>
 </html>

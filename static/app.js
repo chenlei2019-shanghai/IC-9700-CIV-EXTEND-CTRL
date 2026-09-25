@@ -19,6 +19,8 @@ function connectWS() {
       document.getElementById("conn-pill").textContent = "WS就绪";
       document.getElementById("conn-pill").className = "status-pill ok";
       clearTimeout(reconnectTimer);
+      sendCmd("get_settings");
+      sendCmd("audio_devices");
     };
     ws.onmessage = (ev) => handleMessage(JSON.parse(ev.data));
     ws.onclose = () => { ws = null; setConnPill(false); reconnectTimer = setTimeout(connectWS, 2000); };
@@ -123,6 +125,26 @@ function handleMessage(msg) {
     if (msg.connected) {
       setTimeout(() => refreshActivePanel("home"), 500);
     }
+  }
+  else if (msg.type === "connect_settings") {
+    // Server-side saved connection settings (survive port/origin changes)
+    const s = msg.settings || {};
+    if (s.mode) {
+      document.getElementById("conn-type").value = s.mode;
+      updateConnTypeUI();
+    }
+    if (s.host !== undefined) document.getElementById("lan-host").value = s.host;
+    if (s.username !== undefined) document.getElementById("lan-user").value = s.username;
+    if (s.password !== undefined) document.getElementById("lan-pass").value = s.password;
+    if (s.baudrate) document.getElementById("baud-select").value = String(s.baudrate);
+    if (s.port) {
+      const ps = document.getElementById("port-select");
+      if (![...ps.options].some(o => o.value === s.port)) {
+        ps.appendChild(new Option(s.port, s.port));
+      }
+      ps.value = s.port;
+    }
+    if (s.model) { document.getElementById("rig-model").value = s.model; applyRigModel(s.model); }
   }
   else if (msg.type === "error") log(`错误: ${msg.message}`, "err");
 }
@@ -959,97 +981,670 @@ document.addEventListener("DOMContentLoaded", () => {
   document.querySelectorAll("[data-cmd='scan']").forEach(btn=>btn.addEventListener("click", ()=>sendCmd("scan", {type:btn.dataset.val})));
   document.querySelectorAll("[data-cmd='duplex']").forEach(btn=>btn.addEventListener("click", ()=>sendCmd("set_duplex", {duplex:btn.dataset.val})));
 
-  // ========== Satellite Panel ==========
-  let _satMainHz = 0, _satMainMd = "---", _satSubHz = 0, _satSubMd = "---";
-  let _satMonitorTimer = null;
+  // ========== Satellite Doppler Tracker Panel ==========
+  let _satPresets = {}, _satTleNames = [], _tleNamesKey = "";
 
-  function updateSatDisplay() {
-    document.getElementById("sat-main-freq").textContent = (_satMainHz ? formatSatFreq(_satMainHz) + " MHz" : "---.---.---");
-    document.getElementById("sat-main-mode").textContent = _satMainMd;
-    document.getElementById("sat-sub-freq").textContent = (_satSubHz ? formatSatFreq(_satSubHz) + " MHz" : "---.---.---");
-    document.getElementById("sat-sub-mode").textContent = _satSubMd;
-  }
-
-  function formatSatFreq(hz) {
-    const parts = (hz/1e6).toFixed(3).split('.');
-    return parts[0] + '.' + parts[1].padStart(3,'0');
-  }
-
-  function startDualMonitor() {
-    if (_satMonitorTimer) return;
-    _satFailCount = 0;
-    document.getElementById("btn-sat-monitor").textContent = "停止监控";
-    document.getElementById("btn-sat-monitor").className = "btn-toggle on";
-
-    function pollCycle() {
-      if (!_satMonitorTimer) return;
-      // Step 1: switch to SUB and read
-      sendCmd("vfo", {vfo: "sub"});
-      const t1 = setTimeout(() => {
-        if (!_satMonitorTimer) return;
-        sendCmd("poll", {targets: ["freq", "mode"]});
-        const t2 = setTimeout(() => {
-          if (!_satMonitorTimer) return;
-          // freq response captured by handleCIV → currentFreq/currentMode show SUB
-          // But need to check if SUB was actually selected (no NG)
-          _satSubHz = currentFreq;
-          _satSubMd = currentMode;
-          sendCmd("vfo", {vfo: "main"});
-          updateSatDisplay();
-          if (_satFailCount >= 3) {
-            stopDualMonitor();
-            document.getElementById("sat-sub-freq").textContent = "SUB 不可选";
-            return;
-          }
-          _satMonitorTimer = setTimeout(pollCycle, 2000);
-        }, 450);
-        _satMonitorTimer = t2;
-      }, 250);
-      _satMonitorTimer = t1;
+  // ---- UTC / local time toggle ----
+  let _tzMode = "utc";
+  try { _tzMode = localStorage.getItem("tz_mode") || "utc"; } catch (e) {}
+  let _lastPassList = null, _lastProfile = null;
+  function fmtT(ts, withSec) {
+    if (ts === undefined || ts === null) return "";
+    const d = new Date(ts * 1000);
+    const p = n => String(n).padStart(2, "0");
+    if (_tzMode === "utc") {
+      return `${p(d.getUTCMonth() + 1)}-${p(d.getUTCDate())} ${p(d.getUTCHours())}:${p(d.getUTCMinutes())}` + (withSec ? `:${p(d.getUTCSeconds())}` : "");
     }
-    _satMonitorTimer = setTimeout(pollCycle, 100);
+    return `${p(d.getMonth() + 1)}-${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}` + (withSec ? `:${p(d.getSeconds())}` : "");
+  }
+  function satApplyTzBtn() { document.getElementById("btn-tz").textContent = _tzMode === "utc" ? "UTC" : "本地"; }
+  function satProfileInfo(p) {
+    if (p && p.aos) {
+      const tz = _tzMode === "utc" ? "UTC" : "本地";
+      document.getElementById("sat-pass-info").textContent =
+        `过境剖面: AOS ${fmtT(p.aos_ts, true)} · 最大仰角 ${p.max_el}° · LOS ${fmtT(p.los_ts, true)} (${tz})`;
+    }
+  }
+  document.getElementById("btn-tz").addEventListener("click", () => {
+    _tzMode = _tzMode === "utc" ? "local" : "utc";
+    try { localStorage.setItem("tz_mode", _tzMode); } catch (e) {}
+    satApplyTzBtn();
+    if (_lastPassList) satRenderPassList(_lastPassList);
+    if (_lastProfile) { satProfileInfo(_lastProfile); satDrawPass(_lastProfile); }
+  });
+  satApplyTzBtn();
+
+  document.getElementById("btn-exit").addEventListener("click", () => {
+    if (!confirm("确定退出？将停止跟踪、还原电台状态并关闭后台程序。")) return;
+    sendCmd("shutdown");
+    document.body.innerHTML = '<div style="color:#94a3b8;font-size:1.2rem;text-align:center;margin-top:30vh">正在退出，此页面可关闭…</div>';
+  });
+
+  function fmtMHz(hz) {
+    if (!hz) return "---.------";
+    return (hz / 1e6).toFixed(6).replace(/0$/, "");
+  }
+  function fmtShift(hz) {
+    if (hz === undefined || hz === null) return "";
+    return (hz >= 0 ? "+" : "") + (hz / 1000).toFixed(1) + " kHz";
   }
 
-  function stopDualMonitor() {
-    if (_satMonitorTimer) { clearTimeout(_satMonitorTimer); _satMonitorTimer = null; }
-    document.getElementById("btn-sat-monitor").textContent = "开始监控";
-    document.getElementById("btn-sat-monitor").className = "btn-toggle off";
-    sendCmd("vfo", {vfo: "main"});
+  function satUpdateUI(st) {
+    if (!st || st.type !== "sat_status") return;
+    // run pill
+    const pill = document.getElementById("sat-run-pill");
+    if (st.running) {
+      pill.textContent = (st.enabled ? "跟踪中" : "已暂停") + (st.auto ? " · 轮询" : "");
+      pill.className = "status-pill " + (st.enabled ? "ok" : "warn");
+    } else {
+      pill.textContent = st.schedule_on ? "轮询待命" : "未跟踪";
+      pill.className = "status-pill " + (st.schedule_on ? "warn" : "err");
+    }
+    satRenderFavs(st.favs || [], !!st.schedule_on);
+    // start/stop buttons: grey out the inapplicable one
+    const bStart = document.getElementById("btn-sat-start");
+    const bStop = document.getElementById("btn-sat-stop");
+    bStart.disabled = !!st.running;
+    bStop.disabled = !st.running;
+    bStart.style.opacity = st.running ? "0.35" : "1";
+    bStop.style.opacity = st.running ? "1" : "0.35";
+    document.getElementById("btn-sat-enable").textContent = st.enabled ? "更新 ON" : "更新 OFF";
+    document.getElementById("btn-sat-enable").className = "btn-toggle " + (st.enabled ? "on" : "off");
+    document.getElementById("btn-sat-lock").className = "btn-toggle " + (st.lock_vfo ? "on" : "off");
+
+    // config fields (only fill once per cfg change; don't clobber user typing while running)
+    const swap = !!(st.cfg && st.cfg.swap);
+    if (st.cfg) {
+      const c = st.cfg;
+      if (document.getElementById("sat-name").value !== c.name) document.getElementById("sat-name").value = c.name;
+      document.getElementById("sat-cfg-up-mode").value = c.up_mode;
+      document.getElementById("sat-cfg-down-mode").value = c.down_mode;
+      if (!st.running) {
+        document.getElementById("sat-up").value = (c.up / 1e6).toFixed(6);
+        document.getElementById("sat-down").value = (c.down / 1e6).toFixed(6);
+      }
+      document.getElementById("sat-invert").checked = !!c.invert;
+      document.getElementById("sat-swap").checked = swap;
+      if (c.tone) document.getElementById("sat-tone").value = String(c.tone);
+    }
+    if (st.restore_on_stop !== undefined) {
+      document.getElementById("sat-restore").checked = !!st.restore_on_stop;
+    }
+    if (st.auto_tle !== undefined) {
+      document.getElementById("sat-auto-tle").checked = !!st.auto_tle;
+    }
+    // band-role labels (MAIN box shows MAIN band content, swap-aware)
+    document.getElementById("sat-main-label").textContent = swap ? "MAIN — RX 下行 ▼ (wfview 音频)" : "MAIN — TX 上行 ▲";
+    document.getElementById("sat-sub-label").textContent = swap ? "SUB — 上行参考 ▲ (勿发射)" : "SUB — RX 下行 ▼";
+    // error line
+    const errEl = document.getElementById("sat-error");
+    if (st.error) { errEl.textContent = "⚠ " + st.error; errEl.style.display = ""; }
+    else { errEl.style.display = "none"; }
+    if (st.observer) {
+      document.getElementById("sat-lat").value = st.observer.lat;
+      document.getElementById("sat-lon").value = st.observer.lon;
+      document.getElementById("sat-alt").value = st.observer.alt_m;
+    }
+    if (st.tle_count !== undefined) {
+      const msgEl = document.getElementById("sat-tle-msg");
+      if (!st.tle_time) {
+        msgEl.textContent = `TLE: ${st.tle_count} 颗 (未更新)`;
+        msgEl.style.color = "#94a3b8";
+      } else {
+        const ageD = (Date.now() / 1000 - st.tle_time) / 86400;
+        const t = new Date(st.tle_time * 1000).toLocaleString();
+        const maxAge = st.tle_max_age_days || 7;
+        if (ageD > maxAge) {
+          msgEl.textContent = `⚠ TLE 已 ${Math.floor(ageD)} 天未更新 (${t})，请点击更新`;
+          msgEl.style.color = "#fbbf24";
+        } else {
+          msgEl.textContent = `TLE: ${st.tle_count} 颗 (${t})`;
+          msgEl.style.color = "#94a3b8";
+        }
+      }
+    }
+    if (st.tle_url !== undefined && document.activeElement !== document.getElementById("sat-tle-url")) {
+      document.getElementById("sat-tle-url").value = st.tle_url || "";
+    }
+    if (st.rotator) {
+      document.getElementById("sat-rot-on").checked = !!st.rotator.on;
+      if (document.activeElement !== document.getElementById("sat-rot-host")) document.getElementById("sat-rot-host").value = st.rotator.host;
+      if (document.activeElement !== document.getElementById("sat-rot-port")) document.getElementById("sat-rot-port").value = st.rotator.port;
+    }
+    _satTleNames = st.tle_names || [];
+    if (st.tle_names && st.tle_names.join() !== _tleNamesKey) {
+      _tleNamesKey = st.tle_names.join();
+      document.getElementById("sat-tle-datalist").innerHTML =
+        st.tle_names.map(n => `<option value="${n}">`).join("");
+    }
+
+    // calculated freqs — map roles (up/down) onto MAIN/SUB boxes per swap
+    const calc = st.calc;
+    if (calc && st.cfg) {
+      const mainFreq = swap ? calc.down : calc.up;
+      const subFreq = swap ? calc.up : calc.down;
+      const mainShift = swap ? calc.down_shift : calc.up_shift;
+      const subShift = swap ? calc.up_shift : calc.down_shift;
+      document.getElementById("sat-main-freq").textContent = fmtMHz(mainFreq);
+      document.getElementById("sat-sub-freq").textContent = fmtMHz(subFreq);
+      document.getElementById("sat-main-mode").textContent = swap ? st.cfg.down_mode : st.cfg.up_mode;
+      document.getElementById("sat-sub-mode").textContent = swap ? st.cfg.up_mode : st.cfg.down_mode;
+      document.getElementById("sat-main-shift").textContent = "Δ " + fmtShift(mainShift);
+      document.getElementById("sat-sub-shift").textContent = "Δ " + fmtShift(subShift);
+      document.getElementById("sat-geo").textContent =
+        `卫星: ${calc.tle_name || calc.name} · 方位 ${calc.az}° · 仰角 ${calc.el}°` +
+        ` · 距离率 ${calc.range_rate} m/s · 距离 ${calc.range_km} km` +
+        (calc.above ? "" : "  (地平线以下)");
+    }
+    document.getElementById("sat-offsets").textContent =
+      `up ${st.up_off >= 0 ? "+" : ""}${st.up_off} Hz · down ${st.down_off >= 0 ? "+" : ""}${st.down_off} Hz`;
   }
 
-  document.getElementById("btn-sat-monitor").addEventListener("click", function() {
-    if (_satMonitorTimer) stopDualMonitor(); else startDualMonitor();
+  let _transpDb = {}, _curNorad = null;
+
+  function rebuildSatSelect(filter) {
+    filter = (filter || "").toUpperCase();
+    const sel = document.getElementById("sat-preset");
+    const match = n => !filter || n.toUpperCase().includes(filter);
+    let html = '<option value="">-- 自定义 --</option>';
+    const pn = Object.keys(_satPresets).filter(match);
+    if (pn.length) {
+      html += '<optgroup label="内置预设">' +
+        pn.map(n => `<option value="p:${n}">${n}</option>`).join("") + "</optgroup>";
+    }
+    const names = Object.keys(_transpDb).filter(match).sort((a, b) => a.localeCompare(b));
+    if (names.length) {
+      const cap = filter ? names.slice(0, 80) : names;
+      html += `<optgroup label="SatNOGS 数据库 (${filter ? names.length + " 匹配" : names.length + " 颗"})">`;
+      html += cap.map(n => `<option value="s:${n}">${n}</option>`).join("");
+      html += "</optgroup>";
+    }
+    sel.innerHTML = html;
+  }
+
+  document.getElementById("sat-search").addEventListener("input", function() {
+    rebuildSatSelect(this.value.trim());
   });
 
-  document.getElementById("btn-sat-main").addEventListener("click", function() {
-    sendCmd("vfo", {vfo: "main"});
-    this.className = "btn-toggle on";
-    document.getElementById("btn-sat-sub").className = "btn-toggle off";
+  function satLoadPresets(presets, tones) {
+    _satPresets = presets || {};
+    rebuildSatSelect();
+    const toneSel = document.getElementById("sat-tone");
+    toneSel.innerHTML = '<option value="">无</option>' +
+      (tones || []).map(t => `<option value="${t}">${t.toFixed(1)} Hz</option>`).join("");
+  }
+
+  function satFillPreset(name) {
+    const p = _satPresets[name];
+    if (!p) return;
+    _curNorad = null;
+    document.getElementById("sat-name").value = name;
+    document.getElementById("sat-up").value = (p.up / 1e6).toFixed(6);
+    document.getElementById("sat-cfg-up-mode").value = p.up_mode;
+    document.getElementById("sat-down").value = (p.down / 1e6).toFixed(6);
+    document.getElementById("sat-cfg-down-mode").value = p.down_mode;
+    document.getElementById("sat-tone").value = p.tone ? String(p.tone) : "";
+    document.getElementById("sat-invert").checked = !!p.invert;
+  }
+
+  function satFillEntry(name, e) {
+    document.getElementById("sat-name").value = name;
+    if (e.up) document.getElementById("sat-up").value = (e.up / 1e6).toFixed(6);
+    if (e.up_mode) document.getElementById("sat-cfg-up-mode").value = e.up_mode;
+    document.getElementById("sat-down").value = (e.down / 1e6).toFixed(6);
+    if (e.down_mode) document.getElementById("sat-cfg-down-mode").value = e.down_mode;
+    document.getElementById("sat-tone").value = e.tone ? String(e.tone) : "";
+    _curNorad = e.norad || null;
+  }
+
+  function satSelectChange(v) {
+    const wrap = document.getElementById("sat-transp-wrap");
+    if (v.startsWith("p:")) {
+      wrap.style.display = "none";
+      satFillPreset(v.slice(2));
+    } else if (v.startsWith("s:")) {
+      const name = v.slice(2);
+      const list = _transpDb[name] || [];
+      const ts = document.getElementById("sat-transp");
+      if (list.length > 1) {
+        ts.innerHTML = list.map((e, i) => `<option value="${i}">${e.descr || ("转发器 " + (i + 1))}</option>`).join("");
+        wrap.style.display = "";
+      } else {
+        wrap.style.display = "none";
+      }
+      if (list.length) satFillEntry(name, list[parseInt(ts.value) || 0]);
+    }
+  }
+
+  function satApplyConfig() {
+    const name = document.getElementById("sat-name").value.trim();
+    const up = Math.round(parseFloat(document.getElementById("sat-up").value) * 1e6);
+    const down = Math.round(parseFloat(document.getElementById("sat-down").value) * 1e6);
+    if (!name || !up || !down) { document.getElementById("sat-cfg-msg").textContent = "请填写卫星名和上/下行频率"; return; }
+    const toneV = document.getElementById("sat-tone").value;
+    sendCmd("sat_configure", {
+      name, up, down,
+      up_mode: document.getElementById("sat-cfg-up-mode").value,
+      down_mode: document.getElementById("sat-cfg-down-mode").value,
+      tone: toneV ? parseFloat(toneV) : null,
+      invert: document.getElementById("sat-invert").checked,
+      swap: document.getElementById("sat-swap").checked,
+      restore: document.getElementById("sat-restore").checked,
+      norad: _curNorad,
+      fm_step_hz: parseInt(document.getElementById("sat-fm-step").value),
+    });
+  }
+
+  document.getElementById("sat-preset").addEventListener("change", function() { if (this.value) satSelectChange(this.value); });
+  document.getElementById("sat-transp").addEventListener("change", function() {
+    const v = document.getElementById("sat-preset").value;
+    if (v.startsWith("s:")) {
+      const list = _transpDb[v.slice(2)] || [];
+      const e = list[parseInt(this.value) || 0];
+      if (e) satFillEntry(v.slice(2), e);
+    }
   });
-  document.getElementById("btn-sat-sub").addEventListener("click", function() {
-    sendCmd("vfo", {vfo: "sub"});
-    this.className = "btn-toggle off";
-    document.getElementById("btn-sat-sub").className = "btn-toggle on";
+  document.getElementById("btn-sat-transp").addEventListener("click", () => {
+    document.getElementById("sat-tle-msg").textContent = "频率数据库更新中...";
+    sendCmd("sat_fetch_transp");
   });
-  document.getElementById("btn-sat-vfo-eq").addEventListener("click", ()=>sendCmd("vfo", {vfo: "equal"}));
-  document.getElementById("btn-sat-vfo-ex").addEventListener("click", ()=>{
-    sendCmd("vfo", {vfo: "exchange"});
-    [_satMainHz, _satSubHz] = [_satSubHz, _satMainHz];
-    [_satMainMd, _satSubMd] = [_satSubMd, _satMainMd];
-    updateSatDisplay();
+  document.getElementById("btn-sat-apply").addEventListener("click", satApplyConfig);
+  document.getElementById("btn-sat-start").addEventListener("click", () => { satApplyConfig(); setTimeout(() => sendCmd("sat_start"), 300); });
+  document.getElementById("btn-sat-stop").addEventListener("click", () => sendCmd("sat_stop"));
+  document.getElementById("btn-sat-enable").addEventListener("click", function() {
+    sendCmd("sat_enable", { on: this.classList.contains("off") });
+  });
+  document.getElementById("btn-sat-lock").addEventListener("click", function() {
+    sendCmd("sat_lock", { on: this.classList.contains("off") });
+  });
+  document.getElementById("btn-sat-center").addEventListener("click", () => sendCmd("sat_center"));
+  document.getElementById("btn-sat-pass").addEventListener("click", () => {
+    document.getElementById("sat-pass-info").textContent = "过境预测(48h): 计算中...";
+    sendCmd("sat_pass_list");
+  });
+  document.getElementById("sat-auto-tle").addEventListener("change", function() {
+    sendCmd("sat_set_auto_tle", { on: this.checked });
+  });
+  document.getElementById("sat-grid").addEventListener("change", function() {
+    const g = this.value.trim();
+    if (g.length >= 4) {
+      sendCmd("sat_grid", { grid: g, alt_m: parseFloat(document.getElementById("sat-alt").value) || 50 });
+    }
   });
 
-  // Hook: track MAIN freq/mode from normal polling
-  const _origHC_sat = handleCIV;
-  handleCIV = function(msg) {
-    _origHC_sat(msg);
-    if (msg.event === "frequency") {
-      _satMainHz = msg.frequency;
-      updateSatDisplay();
+  // ---- pass profile graph ----
+  function satRenderPassList(passes) {
+    const el = document.getElementById("sat-pass-list");
+    if (!passes || !passes.length) { el.style.display = "none"; el.innerHTML = ""; return; }
+    _lastPassList = passes;
+    el.style.display = "";
+    el.innerHTML = passes.map((p, i) =>
+      `<div class="sat-pass-row" data-i="${i}" style="cursor:pointer;padding:2px 6px;border-radius:3px">` +
+      `#${i + 1}　AOS ${fmtT(p.aos_ts, true)} · 最高 ${p.max_el}° · LOS ${fmtT(p.los_ts, true)} · ${p.dur_min}分钟</div>`).join("");
+    el.querySelectorAll(".sat-pass-row").forEach(r => r.addEventListener("click", () => {
+      el.querySelectorAll(".sat-pass-row").forEach(x => x.style.background = "");
+      r.style.background = "#1e3a5f";
+      sendCmd("sat_pass_profile", { index: parseInt(r.dataset.i) });
+    }));
+  }
+
+  function satDrawPass(p) {
+    const cv = document.getElementById("sat-pass-canvas");
+    if (!p || !p.points || p.points.length < 2) { cv.style.display = "none"; _lastProfile = null; return; }
+    _lastProfile = p;
+    cv.style.display = "";
+    const ctx = cv.getContext("2d");
+    const W = cv.width, H = cv.height;
+    const padL = 44, padR = 14, padT = 18, padB = 30;
+    const pw = W - padL - padR, ph = H - padT - padB;
+    ctx.clearRect(0, 0, W, H);
+    // grid
+    ctx.strokeStyle = "#1e293b"; ctx.fillStyle = "#64748b";
+    ctx.font = "11px monospace"; ctx.lineWidth = 1;
+    const maxEl = Math.max(30, Math.ceil(p.max_el / 10) * 10);
+    for (let e = 0; e <= maxEl; e += (maxEl > 60 ? 30 : 15)) {
+      const y = padT + ph - (e / maxEl) * ph;
+      ctx.beginPath(); ctx.moveTo(padL, y); ctx.lineTo(W - padR, y); ctx.stroke();
+      ctx.fillText(e + "°", 14, y + 4);
     }
-    if (msg.event === "mode") {
-      _satMainMd = msg.mode || "---";
-      updateSatDisplay();
+    const pts = p.points;
+    const x = i => padL + (i / (pts.length - 1)) * pw;
+    const y = el => padT + ph - (Math.max(0, el) / maxEl) * ph;
+    // elevation curve
+    ctx.beginPath();
+    pts.forEach((pt, i) => { i ? ctx.lineTo(x(i), y(pt.el)) : ctx.moveTo(x(0), y(pt.el)); });
+    ctx.strokeStyle = "#22d3ee"; ctx.lineWidth = 2; ctx.stroke();
+    // fill under curve
+    ctx.lineTo(x(pts.length - 1), padT + ph); ctx.lineTo(x(0), padT + ph); ctx.closePath();
+    ctx.fillStyle = "rgba(34,211,238,0.12)"; ctx.fill();
+    // time labels
+    ctx.fillStyle = "#94a3b8"; ctx.lineWidth = 1;
+    [0, Math.floor(pts.length / 2), pts.length - 1].forEach(i => {
+      ctx.fillText(fmtT(pts[i].ts), x(i) - 14, H - 10);
+    });
+    // AOS / LOS / max-el markers
+    ctx.fillStyle = "#34d399";
+    ctx.fillText("AOS " + fmtT(p.aos_ts, true), padL + 2, padT - 4);
+    ctx.fillStyle = "#f87171";
+    ctx.fillText("LOS " + fmtT(p.los_ts, true), W - padR - 84, padT - 4);
+    let imax = 0; pts.forEach((pt, i) => { if (pt.el > pts[imax].el) imax = i; });
+    ctx.beginPath(); ctx.arc(x(imax), y(pts[imax].el), 4, 0, 7);
+    ctx.fillStyle = "#fbbf24"; ctx.fill();
+    ctx.fillText("最高 " + p.max_el + "° (" + fmtT(pts[imax].ts) + ")", Math.min(x(imax) + 8, W - 150), y(pts[imax].el) - 6);
+    // az axis hint
+    ctx.fillStyle = "#64748b";
+    ctx.fillText("方位 " + pts[0].az + "° → " + pts[imax].az + "° → " + pts[pts.length - 1].az + "°", padL + 100, H - 10);
+  }
+  document.querySelectorAll(".sat-nudge").forEach(b => b.addEventListener("click", () => {
+    sendCmd("sat_nudge", { which: b.dataset.which, delta_hz: parseInt(b.dataset.d) });
+  }));
+  document.getElementById("btn-sat-tle").addEventListener("click", () => {
+    document.getElementById("sat-tle-msg").textContent = "TLE 更新中...";
+    sendCmd("sat_fetch_tle", { url: document.getElementById("sat-tle-url").value.trim() });
+  });
+  function satRotSend() {
+    sendCmd("sat_rotator", {
+      on: document.getElementById("sat-rot-on").checked,
+      host: document.getElementById("sat-rot-host").value.trim(),
+      port: parseInt(document.getElementById("sat-rot-port").value) || 12000,
+    });
+  }
+  ["sat-rot-on", "sat-rot-host", "sat-rot-port"].forEach(id =>
+    document.getElementById(id).addEventListener("change", satRotSend));
+
+  // ---- favorites & schedule ----
+  function satRenderFavs(favs, scheduleOn) {
+    const el = document.getElementById("sat-fav-list");
+    if (!favs || !favs.length) {
+      el.innerHTML = '<span style="color:#64748b;font-size:0.78rem">暂无收藏 — 选好卫星配置后点"☆ 收藏当前卫星"</span>';
+    } else {
+      el.innerHTML = favs.map(f =>
+        `<span class="sat-fav-chip" data-name="${f.name}" title="${(f.up/1e6).toFixed(3)}↑ ${(f.down/1e6).toFixed(3)}↓" ` +
+        `style="background:#1e293b;border:1px solid #fbbf24;color:#fbbf24;padding:2px 8px;border-radius:10px;font-size:0.78rem;cursor:pointer">` +
+        `★ ${f.name} <b class="sat-fav-del" data-name="${f.name}" style="color:#f87171;cursor:pointer;margin-left:4px">×</b></span>`).join("");
+      el.querySelectorAll(".sat-fav-chip").forEach(ch => ch.addEventListener("click", (ev) => {
+        if (ev.target.classList.contains("sat-fav-del")) return;
+        const f = favs.find(x => x.name === ch.dataset.name);
+        if (f) satFillEntry(f.name, f);
+      }));
+      el.querySelectorAll(".sat-fav-del").forEach(x => x.addEventListener("click", () => {
+        sendCmd("sat_fav_del", { name: x.dataset.name });
+      }));
     }
+    const sb = document.getElementById("btn-sat-schedule");
+    sb.textContent = scheduleOn ? "自动轮询 ON" : "自动轮询 OFF";
+    sb.className = "btn-toggle " + (scheduleOn ? "on" : "off");
+  }
+
+  document.getElementById("btn-sat-fav-add").addEventListener("click", () => {
+    const name = document.getElementById("sat-name").value.trim();
+    const up = Math.round(parseFloat(document.getElementById("sat-up").value) * 1e6);
+    const down = Math.round(parseFloat(document.getElementById("sat-down").value) * 1e6);
+    if (!name || !up || !down) { document.getElementById("sat-cfg-msg").textContent = "先填写完整配置再收藏"; return; }
+    const toneV = document.getElementById("sat-tone").value;
+    sendCmd("sat_fav_add", { cfg: {
+      name, up, down,
+      up_mode: document.getElementById("sat-cfg-up-mode").value,
+      down_mode: document.getElementById("sat-cfg-down-mode").value,
+      tone: toneV ? parseFloat(toneV) : null,
+      invert: document.getElementById("sat-invert").checked,
+      norad: _curNorad,
+    }});
+  });
+
+  document.getElementById("btn-sat-schedule").addEventListener("click", function() {
+    sendCmd("sat_schedule", { on: !this.classList.contains("on") });
+  });
+
+  document.getElementById("btn-sat-fav-passes").addEventListener("click", () => {
+    document.getElementById("sat-fav-pass-msg").textContent = "计算中...";
+    sendCmd("sat_fav_passes", { min_el: parseFloat(document.getElementById("sat-fav-minel").value) || 0, hours: 24 });
+  });
+
+  function satRenderFavPasses(rows) {
+    const tbl = document.getElementById("sat-fav-pass-table");
+    const msg = document.getElementById("sat-fav-pass-msg");
+    if (!rows || !rows.length) {
+      tbl.innerHTML = "";
+      msg.textContent = "收藏夹无卫星，或 24h 内无满足仰角条件的过境";
+      return;
+    }
+    const tz = _tzMode === "utc" ? "UTC" : "本地";
+    msg.textContent = `${rows.length} 颗收藏卫星的下一次过境 (${tz})，点击行载入配置:`;
+    tbl.innerHTML = '<table style="width:100%;border-collapse:collapse">' +
+      '<tr style="color:#64748b;text-align:left"><th>卫星</th><th>AOS</th><th>LOS</th><th>最大仰角</th><th>时长</th></tr>' +
+      rows.map((r, i) => r.no_tle
+        ? `<tr style="color:#f87171"><td>★ ${r.name}</td><td colspan="4">缺 TLE，请先更新</td></tr>`
+        : `<tr class="sat-fav-pass-row" data-i="${i}" style="cursor:pointer">` +
+          `<td style="color:#fbbf24">★ ${r.name}</td><td>${fmtT(r.aos_ts, true)}</td><td>${fmtT(r.los_ts, true)}</td>` +
+          `<td style="color:${r.max_el >= 40 ? "#34d399" : r.max_el >= 15 ? "#fbbf24" : "#94a3b8"}">${r.max_el}°</td>` +
+          `<td>${r.dur_min}分</td></tr>`).join("") +
+      "</table>";
+    tbl.querySelectorAll(".sat-fav-pass-row").forEach(tr => tr.addEventListener("click", () => {
+      const r = rows[parseInt(tr.dataset.i)];
+      if (r && r.cfg) { satFillEntry(r.name, r.cfg); satApplyConfig(); }
+    }));
+  }
+  document.getElementById("btn-sat-obs").addEventListener("click", () => {
+    const lat = parseFloat(document.getElementById("sat-lat").value);
+    const lon = parseFloat(document.getElementById("sat-lon").value);
+    const alt = parseFloat(document.getElementById("sat-alt").value) || 50;
+    const grid = document.getElementById("sat-grid").value.trim();
+    sendCmd("sat_set_observer", { lat, lon, alt_m: alt });
+    try { localStorage.setItem("sat_observer", JSON.stringify({ lat, lon, alt_m: alt, grid })); } catch (e) {}
+  });
+  document.getElementById("btn-sat-tle-set").addEventListener("click", () => {
+    const n = document.getElementById("sat-tle-name").value.trim();
+    const l1 = document.getElementById("sat-tle-l1").value.trim();
+    const l2 = document.getElementById("sat-tle-l2").value.trim();
+    if (n && l1 && l2) sendCmd("sat_set_tle", { name: n, line1: l1, line2: l2 });
+  });
+
+  // restore observer from localStorage
+  try {
+    const obs = JSON.parse(localStorage.getItem("sat_observer") || "null");
+    if (obs) {
+      document.getElementById("sat-lat").value = obs.lat;
+      document.getElementById("sat-lon").value = obs.lon;
+      document.getElementById("sat-alt").value = obs.alt_m;
+      if (obs.grid) document.getElementById("sat-grid").value = obs.grid;
+      sendCmd("sat_set_observer", obs);
+    }
+  } catch (e) {}
+
+  // Hook into message pipeline: sat_status / sat_tle / sat_cfg / sat_run / sat_pass
+  const _origHM_sat = handleMessage;
+  handleMessage = function(msg) {
+    if (msg.type === "sat_status") { if (msg.presets) satLoadPresetsOnce(msg); satUpdateUI(msg); return; }
+    if (msg.type === "sat_tle") {
+      document.getElementById("sat-tle-msg").textContent = msg.success ? `TLE 已更新: ${msg.count} 颗` : ("TLE 更新失败: " + msg.error);
+      return;
+    }
+    if (msg.type === "sat_transp") {
+      if (msg.db) {
+        _transpDb = msg.db;
+        rebuildSatSelect(document.getElementById("sat-search").value.trim());
+      }
+      const n = Object.keys(_transpDb).length;
+      document.getElementById("sat-tle-msg").textContent = msg.success === false
+        ? ("频率数据库更新失败: " + msg.error)
+        : `频率数据库: ${n} 颗 (${msg.time ? new Date(msg.time * 1000).toLocaleString() : "缓存"})`;
+      return;
+    }
+    if (msg.type === "sat_cfg") {
+      document.getElementById("sat-cfg-msg").textContent = msg.success
+        ? ("已应用" + (msg.tle_name ? " · TLE: " + msg.tle_name : " · 未找到TLE!")) : ("配置失败: " + msg.error);
+      return;
+    }
+    if (msg.type === "sat_run") {
+      if (msg.error) document.getElementById("sat-cfg-msg").textContent = "启动失败: " + msg.error;
+      return;
+    }
+    if (msg.type === "sat_pass") {
+      const p = msg.pass;
+      document.getElementById("sat-pass-info").textContent = p && p.aos
+        ? `过境预测: AOS ${p.aos} UTC · 最大仰角 ${p.max_el}° · LOS ${p.los} UTC`
+        : "过境预测: 未来24小时无过境 (或未配置卫星)";
+      return;
+    }
+    if (msg.type === "audio_devices") {
+      const sel = document.getElementById("audio-dev");
+      const opts = (msg.devices || []).map(d =>
+        `<option value="${d.index}">${d.name} (${d.samplerate/1000}k)</option>`).join("");
+      sel.innerHTML = opts || '<option value="">（未发现录音设备）</option>';
+      if (msg.default !== undefined && msg.default !== null) sel.value = String(msg.default);
+      if (msg.error) document.getElementById("audio-msg").textContent = msg.error;
+      return;
+    }
+    if (msg.type === "audio_state") {
+      if (msg.error) {
+        document.getElementById("audio-msg").textContent = "音频错误: " + msg.error;
+        return;
+      }
+      _audioRunning = !!msg.running;
+      _audioStreamChs = msg.stream_channels || 2;
+      document.getElementById("btn-audio-toggle").textContent = _audioRunning ? "■ 停止" : "▶ 收听";
+      document.getElementById("audio-msg").textContent = _audioRunning
+        ? `48kHz/${_audioStreamChs === 2 ? "立体声" : (_audioChannel === "ch1" ? "CH1·MAIN" : "CH2·SUB")} 播放中` : "";
+      if (_audioRunning && msg.channel) satAudioSetChUI(msg.channel);
+      if (!_audioRunning) satAudioPlayStop();
+      return;
+    }
+    if (msg.type === "sat_fav_passes") {
+      satRenderFavPasses(msg.rows);
+      return;
+    }
+    if (msg.type === "sat_pass_list") {
+      const ps = msg.passes;
+      if (ps && ps.length) {
+        const tz = _tzMode === "utc" ? "UTC" : "本地";
+        document.getElementById("sat-pass-info").textContent =
+          `48小时内共 ${ps.length} 次过境 (${tz})，点击条目查看仰角剖面:`;
+        satRenderPassList(ps);
+        sendCmd("sat_pass_profile", { index: 0 });
+      } else {
+        document.getElementById("sat-pass-info").textContent = "过境预测: 未来48小时无过境 (或未配置卫星)";
+        satRenderPassList(null);
+        satDrawPass(null);
+      }
+      return;
+    }
+    if (msg.type === "sat_pass_profile") {
+      satProfileInfo(msg.profile);
+      satDrawPass(msg.profile);
+      return;
+    }
+    if (msg.type === "sat_grid") {
+      if (msg.success) {
+        document.getElementById("sat-lat").value = msg.lat;
+        document.getElementById("sat-lon").value = msg.lon;
+        const alt = parseFloat(document.getElementById("sat-alt").value) || 50;
+        try { localStorage.setItem("sat_observer", JSON.stringify({ lat: msg.lat, lon: msg.lon, alt_m: alt, grid: document.getElementById("sat-grid").value.trim() })); } catch (e) {}
+      } else {
+        document.getElementById("sat-tle-msg").textContent = "网格错误: " + msg.error;
+      }
+      return;
+    }
+    _origHM_sat(msg);
   };
+  let _satPresetsLoaded = false;
+  function satLoadPresetsOnce(st) {
+    if (_satPresetsLoaded) return;
+    _satPresetsLoaded = true;
+    satLoadPresets(st.presets, st.tones);
+  }
+  // ---- RX audio bridge (USB codec -> WebSocket PCM -> Web Audio) ----
+  let _audioCtx = null, _audioNext = 0, _audioWS = null;
+  let _audioRunning = false, _audioChannel = "stereo", _audioStreamChs = 2;
+
+  function satAudioSetChUI(ch) {
+    _audioChannel = ch;
+    document.getElementById("btn-audio-ch1").className = "btn-toggle " + (ch === "ch1" ? "on" : "");
+    document.getElementById("btn-audio-ch2").className = "btn-toggle " + (ch === "ch2" ? "on" : "");
+    document.getElementById("btn-audio-stereo").className = "btn-toggle " + (ch === "stereo" ? "on" : "");
+  }
+
+  let _meterLast = 0;
+  function satAudioMeter(vL, vR) {
+    const now = performance.now();
+    if (now - _meterLast < 66) return;  // ~15 Hz refresh
+    _meterLast = now;
+    const set = (id, v) => {
+      const el = document.getElementById(id);
+      const pct = Math.min(100, Math.round(v * 100));
+      el.style.width = pct + "%";
+      el.style.background = pct > 85 ? "#f87171" : pct > 60 ? "#fbbf24" : "#34d399";
+    };
+    set("audio-meter-l", vL);
+    set("audio-meter-r", vR);
+  }
+
+  function satAudioPlayStart() {
+    if (_audioWS) return;
+    _audioWS = new WebSocket(`ws://${location.host}/ws/audio`);
+    _audioWS.binaryType = "arraybuffer";
+    _audioWS.onmessage = (ev) => {
+      try {
+        if (!_audioCtx) {
+          _audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+          _audioNext = _audioCtx.currentTime + 0.1;
+        }
+        const pcm = new Int16Array(ev.data);
+        const chs = _audioStreamChs;
+        const n = Math.floor(pcm.length / chs);
+        if (!n) return;
+        const buf = _audioCtx.createBuffer(chs, n, 48000);
+        const pk = [0, 0];
+        for (let c = 0; c < chs; c++) {
+          const d = buf.getChannelData(c);
+          let p = 0;
+          for (let i = 0; i < n; i++) {
+            const s = pcm[i * chs + c];
+            const a = s < 0 ? -s : s;
+            if (a > p) p = a;
+            d[i] = s / 32768;
+          }
+          pk[c] = p / 32768;
+        }
+        // level meter: stereo shows CH1/CH2; mono shows on its channel bar
+        if (chs === 2) satAudioMeter(pk[0], pk[1]);
+        else if (_audioChannel === "ch2") satAudioMeter(0, pk[0]);
+        else satAudioMeter(pk[0], 0);
+        const src = _audioCtx.createBufferSource();
+        src.buffer = buf;
+        src.connect(_audioCtx.destination);
+        if (_audioNext < _audioCtx.currentTime) _audioNext = _audioCtx.currentTime + 0.05;
+        src.start(_audioNext);
+        _audioNext += buf.duration;
+      } catch (e) { /* drop bad frame */ }
+    };
+    _audioWS.onclose = () => { _audioWS = null; };
+  }
+
+  function satAudioPlayStop() {
+    if (_audioWS) { try { _audioWS.close(); } catch (e) {} _audioWS = null; }
+    if (_audioCtx) { try { _audioCtx.close(); } catch (e) {} _audioCtx = null; }
+    document.getElementById("audio-meter-l").style.width = "0%";
+    document.getElementById("audio-meter-r").style.width = "0%";
+  }
+
+  document.getElementById("btn-audio-toggle").addEventListener("click", () => {
+    if (_audioRunning) {
+      sendCmd("audio_stop");
+      satAudioPlayStop();
+    } else {
+      const devSel = document.getElementById("audio-dev");
+      sendCmd("audio_start", { device: parseInt(devSel.value), channel: _audioChannel });
+      satAudioPlayStart();
+    }
+  });
+  ["ch1", "ch2", "stereo"].forEach(ch => {
+    document.getElementById("btn-audio-" + (ch === "stereo" ? "stereo" : ch)).addEventListener("click", () => {
+      satAudioSetChUI(ch);
+      if (_audioRunning) sendCmd("audio_set_channel", { channel: ch });
+    });
+  });
+
+  // request initial state
+  setTimeout(() => { sendCmd("sat_state"); sendCmd("sat_get_transp"); sendCmd("audio_devices"); }, 800);
 });

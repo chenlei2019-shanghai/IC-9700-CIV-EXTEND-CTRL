@@ -23,7 +23,9 @@ def _log_path() -> str:
 
 _handlers = [logging.StreamHandler()]
 try:
-    _fh = logging.FileHandler(_log_path(), encoding="utf-8")
+    # Fresh log per session (mode="w"); the file is also deleted on shutdown
+    # when the last web client disconnects.
+    _fh = logging.FileHandler(_log_path(), mode="w", encoding="utf-8")
     _handlers.append(_fh)
 except Exception:
     pass
@@ -44,6 +46,8 @@ from fastapi.responses import FileResponse
 from civ import CIVSerial, CIVController, bcd_to_freq, MODES, PREAMBLE, END_CODE
 from civ import set_radio_addr
 from lan import LanCIVTransport
+from sat_tracker import SatTracker, fetch_tle_celestrak
+from audio_bridge import AudioBridge
 from item_map_9700_705 import IC9700_TO_IC705 as _RAW_ITEM_MAP, IC705_BCD_ITEMS as _RAW_705_BCD
 
 
@@ -113,6 +117,15 @@ connected_ws: set[WebSocket] = set()
 polling_task = None
 running = True
 _main_loop: Optional[asyncio.AbstractEventLoop] = None
+_shutdown_watchdog: Optional[asyncio.Task] = None
+
+# Satellite Doppler tracker (dual-VFO, normal VFO mode). Uses `controller`
+# indirectly via get_transport() so transport switches are picked up.
+sat_tracker = SatTracker(lambda: CIVController(get_transport()), None)  # broadcast wired below
+
+# RX audio bridge (USB codec -> PCM16 -> /ws/audio)
+audio_bridge = AudioBridge()
+audio_ws_clients: set[WebSocket] = set()
 
 
 def get_transport():
@@ -215,6 +228,9 @@ def broadcast(msg: dict):
             pass
 
 
+sat_tracker._broadcast = broadcast
+
+
 def on_serial_data(msg: dict):
     """Callback for CI-V serial data."""
     cmd = msg.get("cmd")
@@ -224,6 +240,13 @@ def on_serial_data(msg: dict):
     # Spectrum/scope data (cmd 0x27) — not a CI-V response, silently discard
     if cmd == 0x27:
         return
+
+    # Feed all responses to the satellite tracker (freq reads, state queries)
+    if cmd is not None:
+        try:
+            sat_tracker.feed_response(cmd, payload)
+        except Exception:
+            pass
 
     out = {"type": "civ_response", "cmd": cmd, "payload_hex": payload_hex}
 
@@ -337,14 +360,42 @@ def poll_loop():
         if tr.is_open():
             try:
                 cmd, sub, data = poll_commands[idx % len(poll_commands)]
-                if sub is not None:
-                    tr.send(cmd, data=bytes([sub]) if data is None else data)
-                else:
-                    tr.send(cmd)
+                # While the sat tracker runs it owns band selection and freq
+                # reads; skip freq/mode polls to avoid CI-V interleaving.
+                if not (sat_tracker.running and cmd in (0x03, 0x04)):
+                    if sub is not None:
+                        tr.send(cmd, data=bytes([sub]) if data is None else data)
+                    else:
+                        tr.send(cmd)
             except Exception:
                 pass
         idx += 1
         time.sleep(0.15)  # Poll rate
+
+
+def _settings_path() -> str:
+    """Connection settings file: next to the EXE when frozen, else next to app.py."""
+    if getattr(sys, "frozen", False):
+        return os.path.join(os.path.dirname(sys.executable), "connect_settings.json")
+    return os.path.join(os.path.dirname(os.path.abspath(__file__)), "connect_settings.json")
+
+
+def load_connect_settings() -> dict:
+    try:
+        with open(_settings_path(), encoding="utf-8") as f:
+            return json.load(f)
+    except Exception:
+        return {}
+
+
+def save_connect_settings(s: dict):
+    try:
+        cur = load_connect_settings()
+        cur.update(s)  # merge: keep unrelated keys (e.g. sat_auto_tle)
+        with open(_settings_path(), "w", encoding="utf-8") as f:
+            json.dump(cur, f, ensure_ascii=False, indent=1)
+    except Exception:
+        pass
 
 
 @asynccontextmanager
@@ -354,8 +405,38 @@ async def lifespan(app: FastAPI):
     running = True
     polling_task = threading.Thread(target=poll_loop, daemon=True)
     polling_task.start()
+    asyncio.create_task(audio_pump())
+
+    # Load persisted TLE cache; optionally auto-update in the background
+    sat_tracker.load_tle_cache()
+    sat_tracker.load_transp_cache()
+    _st = load_connect_settings()
+    sat_tracker.favs = _st.get("sat_favs", [])
+    if _st.get("sat_schedule"):
+        sat_tracker.set_schedule(True)
+    sat_tracker.auto_tle = bool(_st.get("sat_auto_tle", False))
+    sat_tracker.tle_url = _st.get("tle_url") or None
+    if _st.get("rot_on"):
+        sat_tracker.set_rotator(on=True, host=_st.get("rot_host"),
+                                port=_st.get("rot_port"))
+    if sat_tracker.auto_tle:
+        def _auto_tle():
+            try:
+                tle = fetch_tle_celestrak(sat_tracker.tle_url)
+                sat_tracker.set_tle_bulk(tle)
+                logging.info("TLE auto-update OK: %d sats", len(tle))
+                sat_tracker._broadcast_status()
+            except Exception as e:
+                logging.warning("TLE auto-update failed: %s", e)
+        threading.Thread(target=_auto_tle, daemon=True).start()
+
     yield
     running = False
+    try:
+        if sat_tracker.running:
+            sat_tracker.stop()
+    except Exception:
+        pass
     try:
         current_transport.close()
     except Exception:
@@ -433,9 +514,101 @@ async def disconnect_port():
     return {"success": True, "connected": False}
 
 
+async def _shutdown_after_grace(grace_s: float = 8.0):
+    """When the last web client disconnects, shut down the backend after a
+    grace period (cancelled if a client reconnects, e.g. page refresh) and
+    delete this session's log file."""
+    global running
+    try:
+        await asyncio.sleep(grace_s)
+    except asyncio.CancelledError:
+        return
+    if connected_ws:
+        return
+    logging.info("last web client disconnected — shutting down backend")
+    running = False
+    _do_shutdown()
+
+
+def _do_shutdown():
+    """Stop tracker (restores radio), close transport, delete session log, exit."""
+    def _cleanup_and_exit():
+        try:
+            if sat_tracker.running:
+                sat_tracker.stop()  # also restores radio state
+        except Exception:
+            pass
+        try:
+            audio_bridge.stop()
+        except Exception:
+            pass
+        try:
+            current_transport.close()
+        except Exception:
+            pass
+        lp = _log_path()
+        for h in logging.root.handlers[:]:  # release the log file (Windows)
+            try:
+                h.close()
+            except Exception:
+                pass
+            logging.root.removeHandler(h)
+        try:
+            os.remove(lp)
+        except Exception:
+            pass
+        os._exit(0)
+
+    threading.Thread(target=_cleanup_and_exit, daemon=True).start()
+
+
+def _on_ws_closed(ws: WebSocket):
+    global _shutdown_watchdog
+    connected_ws.discard(ws)
+    if not connected_ws and _main_loop is not None:
+        if _shutdown_watchdog is None or _shutdown_watchdog.done():
+            _shutdown_watchdog = asyncio.run_coroutine_threadsafe(
+                _shutdown_after_grace(), _main_loop)
+
+
+async def audio_pump():
+    """Push captured PCM16 chunks to all /ws/audio clients."""
+    while True:
+        try:
+            chunk = await asyncio.to_thread(audio_bridge.read, 0.2)
+        except Exception:
+            chunk = None
+        if chunk is None:
+            continue
+        dead = []
+        for ws in list(audio_ws_clients):
+            try:
+                await ws.send_bytes(chunk)
+            except Exception:
+                dead.append(ws)
+        for ws in dead:
+            audio_ws_clients.discard(ws)
+
+
+@app.websocket("/ws/audio")
+async def audio_ws_endpoint(websocket: WebSocket):
+    await websocket.accept()
+    audio_ws_clients.add(websocket)
+    try:
+        while True:
+            await websocket.receive_text()  # keepalive / ignore
+    except Exception:
+        pass
+    finally:
+        audio_ws_clients.discard(websocket)
+
+
 @app.websocket("/ws")
 async def websocket_endpoint(websocket: WebSocket):
+    global _shutdown_watchdog, running
     await websocket.accept()
+    if _shutdown_watchdog is not None and not _shutdown_watchdog.done():
+        _shutdown_watchdog.cancel()  # client (re)connected, stay alive
     connected_ws.add(websocket)
     try:
         while True:
@@ -459,8 +632,11 @@ async def websocket_endpoint(websocket: WebSocket):
                         await asyncio.to_thread(current_transport.open, port, baud)
                         await asyncio.sleep(0.1)
                         controller.read_id()
+                        save_connect_settings({"mode": "serial", "port": port,
+                                               "baudrate": baud, "model": current_model})
                         await websocket.send_text(json.dumps({"type": "connection", "connected": True, "mode": "serial", "model": current_model}))
                     except Exception as e:
+                        logging.warning("serial connect failed (%s): %s", port, e)
                         await websocket.send_text(json.dumps({"type": "connection", "connected": False, "error": str(e)}))
 
                 elif action == "connect_lan":
@@ -476,9 +652,57 @@ async def websocket_endpoint(websocket: WebSocket):
                         await asyncio.to_thread(current_transport.open, host, username, password, control_port, civ_port)
                         await asyncio.sleep(0.1)
                         controller.read_id()
+                        save_connect_settings({"mode": "lan", "host": host,
+                                               "username": username, "password": password,
+                                               "control_port": control_port, "civ_port": civ_port,
+                                               "model": current_model})
                         await websocket.send_text(json.dumps({"type": "connection", "connected": True, "mode": "lan", "model": current_model}))
                     except Exception as e:
+                        logging.warning("LAN connect failed (%s): %s", host, e)
                         await websocket.send_text(json.dumps({"type": "connection", "connected": False, "error": str(e)}))
+
+                elif action == "get_settings":
+                    await websocket.send_text(json.dumps(
+                        {"type": "connect_settings", "settings": load_connect_settings()}))
+
+                elif action == "shutdown":
+                    logging.info("shutdown requested from web UI")
+                    running = False
+                    await websocket.send_text(json.dumps({"type": "shutdown", "bye": True}))
+                    _do_shutdown()
+
+                # ===== RX audio bridge =====
+                elif action == "audio_devices":
+                    try:
+                        devs = await asyncio.to_thread(audio_bridge.list_devices)
+                        await websocket.send_text(json.dumps(
+                            {"type": "audio_devices", "devices": devs,
+                             "default": audio_bridge.default_device()}))
+                    except Exception as e:
+                        await websocket.send_text(json.dumps(
+                            {"type": "audio_devices", "devices": [], "error": str(e)}))
+
+                elif action == "audio_start":
+                    try:
+                        await asyncio.to_thread(audio_bridge.start,
+                                                msg.get("device"), msg.get("channel"))
+                    except Exception as e:
+                        await websocket.send_text(json.dumps(
+                            {"type": "audio_state", "error": str(e)}))
+                    broadcast({"type": "audio_state", **audio_bridge.state()})
+
+                elif action == "audio_stop":
+                    await asyncio.to_thread(audio_bridge.stop)
+                    broadcast({"type": "audio_state", **audio_bridge.state()})
+
+                elif action == "audio_set_channel":
+                    try:
+                        await asyncio.to_thread(audio_bridge.start, None,
+                                                msg.get("channel", "stereo"))
+                    except Exception as e:
+                        await websocket.send_text(json.dumps(
+                            {"type": "audio_state", "error": str(e)}))
+                    broadcast({"type": "audio_state", **audio_bridge.state()})
 
                 elif action == "disconnect":
                     try:
@@ -621,6 +845,166 @@ async def websocket_endpoint(websocket: WebSocket):
                     data = bytes.fromhex(raw_hex.replace(" ", ""))
                     current_transport.send_raw(data)
 
+                # ===== Satellite Doppler tracking (dual-VFO) =====
+                elif action == "sat_state":
+                    await websocket.send_text(json.dumps(sat_tracker.get_state()))
+
+                elif action == "sat_fetch_tle":
+                    try:
+                        url = (msg.get("url") or "").strip() or None
+                        if url:
+                            sat_tracker.tle_url = url
+                            save_connect_settings({"tle_url": url})
+                        tle = await asyncio.to_thread(fetch_tle_celestrak, sat_tracker.tle_url)
+                        sat_tracker.set_tle_bulk(tle)
+                        # re-match in case TLE arrived after configure
+                        if sat_tracker.cfg:
+                            from sat_tracker import match_tle_name
+                            sat_tracker.tle_name = match_tle_name(tle.keys(), sat_tracker.cfg["name"])
+                        await websocket.send_text(json.dumps(
+                            {"type": "sat_tle", "success": True, "count": len(tle)}))
+                    except Exception as e:
+                        await websocket.send_text(json.dumps(
+                            {"type": "sat_tle", "success": False, "error": str(e)}))
+                    await websocket.send_text(json.dumps(sat_tracker.get_state()))
+
+                elif action == "sat_rotator":
+                    sat_tracker.set_rotator(on=msg.get("on"), host=msg.get("host"),
+                                            port=msg.get("port"))
+                    save_connect_settings({
+                        "rot_on": sat_tracker.rotator["on"],
+                        "rot_host": sat_tracker.rotator["host"],
+                        "rot_port": sat_tracker.rotator["port"]})
+                    sat_tracker._broadcast_status()
+
+                elif action == "sat_fav_add":
+                    cfg = msg.get("cfg") or {}
+                    if cfg.get("name") and cfg.get("up") and cfg.get("down"):
+                        sat_tracker.fav_add(cfg)
+                        save_connect_settings({"sat_favs": sat_tracker.favs})
+
+                elif action == "sat_fav_del":
+                    sat_tracker.fav_del(msg.get("name", ""))
+                    save_connect_settings({"sat_favs": sat_tracker.favs})
+
+                elif action == "sat_schedule":
+                    sat_tracker.set_schedule(bool(msg.get("on", False)))
+                    save_connect_settings({"sat_schedule": sat_tracker.schedule_on})
+
+                elif action == "sat_fav_passes":
+                    min_el = float(msg.get("min_el", 0))
+                    hours = float(msg.get("hours", 24))
+                    rows = await asyncio.to_thread(sat_tracker.fav_pass_table, hours, min_el)
+                    await websocket.send_text(json.dumps(
+                        {"type": "sat_fav_passes", "rows": rows}))
+
+                elif action == "sat_get_transp":
+                    await websocket.send_text(json.dumps({
+                        "type": "sat_transp", "db": sat_tracker.transp_db,
+                        "time": sat_tracker.transp_time}))
+
+                elif action == "sat_fetch_transp":
+                    from sat_tracker import fetch_satnogs_db
+                    try:
+                        db = await asyncio.to_thread(fetch_satnogs_db)
+                        sat_tracker.set_transp_db(db)
+                        await websocket.send_text(json.dumps(
+                            {"type": "sat_transp", "success": True, "db": db,
+                             "time": sat_tracker.transp_time}))
+                    except Exception as e:
+                        await websocket.send_text(json.dumps(
+                            {"type": "sat_transp", "success": False, "error": str(e)}))
+
+                elif action == "sat_set_tle":
+                    sat_tracker.set_tle(msg["name"], msg["line1"], msg["line2"])
+                    await websocket.send_text(json.dumps(sat_tracker.get_state()))
+
+                elif action == "sat_set_observer":
+                    sat_tracker.set_observer(msg.get("lat", 0), msg.get("lon", 0), msg.get("alt_m", 50))
+                    await websocket.send_text(json.dumps(sat_tracker.get_state()))
+
+                elif action == "sat_configure":
+                    try:
+                        sat_tracker.restore_on_stop = bool(msg.get("restore", True))
+                        sat_tracker.configure(
+                            name=msg["name"], up=int(msg["up"]),
+                            up_mode=msg.get("up_mode", "USB"),
+                            tone=msg.get("tone"),
+                            down=int(msg["down"]),
+                            down_mode=msg.get("down_mode", "USB"),
+                            invert=msg.get("invert", False),
+                            fm_step_hz=msg.get("fm_step_hz"),
+                            swap=msg.get("swap", False),
+                            norad=msg.get("norad"))
+                        await websocket.send_text(json.dumps(
+                            {"type": "sat_cfg", "success": True,
+                             "tle_name": sat_tracker.tle_name}))
+                    except Exception as e:
+                        await websocket.send_text(json.dumps(
+                            {"type": "sat_cfg", "success": False, "error": str(e)}))
+                    await websocket.send_text(json.dumps(sat_tracker.get_state()))
+
+                elif action == "sat_start":
+                    try:
+                        await asyncio.to_thread(sat_tracker.start)
+                        await websocket.send_text(json.dumps({"type": "sat_run", "running": True}))
+                    except Exception as e:
+                        sat_tracker.running = False
+                        await websocket.send_text(json.dumps(
+                            {"type": "sat_run", "running": False, "error": str(e)}))
+
+                elif action == "sat_stop":
+                    await asyncio.to_thread(sat_tracker.stop)
+                    await websocket.send_text(json.dumps({"type": "sat_run", "running": False}))
+
+                elif action == "sat_enable":
+                    sat_tracker.enabled = bool(msg.get("on", True))
+                    if not sat_tracker.enabled:
+                        sat_tracker.last_down = None  # avoid LOCK jump after resume
+                    sat_tracker._broadcast_status()
+
+                elif action == "sat_lock":
+                    sat_tracker.lock_vfo = bool(msg.get("on", True))
+                    sat_tracker.last_down = None
+                    sat_tracker._broadcast_status()
+
+                elif action == "sat_nudge":
+                    sat_tracker.nudge(msg.get("which", "down"), int(msg.get("delta_hz", 0)))
+
+                elif action == "sat_center":
+                    sat_tracker.center()
+
+                elif action == "sat_pass":
+                    p = await asyncio.to_thread(sat_tracker.predict_pass)
+                    await websocket.send_text(json.dumps({"type": "sat_pass", "pass": p}))
+
+                elif action == "sat_pass_profile":
+                    idx = int(msg.get("index", 0))
+                    p = await asyncio.to_thread(sat_tracker.predict_pass_profile, 48.0, idx)
+                    await websocket.send_text(json.dumps({"type": "sat_pass_profile", "profile": p}))
+
+                elif action == "sat_pass_list":
+                    pl = await asyncio.to_thread(sat_tracker.predict_passes, 48.0)
+                    await websocket.send_text(json.dumps({"type": "sat_pass_list", "passes": pl}))
+
+                elif action == "sat_grid":
+                    from sat_tracker import grid_to_latlon
+                    try:
+                        lat, lon = grid_to_latlon(msg.get("grid", ""))
+                        sat_tracker.set_observer(lat, lon, float(msg.get("alt_m", 50)))
+                        await websocket.send_text(json.dumps(
+                            {"type": "sat_grid", "success": True,
+                             "lat": round(lat, 5), "lon": round(lon, 5)}))
+                    except Exception as e:
+                        await websocket.send_text(json.dumps(
+                            {"type": "sat_grid", "success": False, "error": str(e)}))
+                    await websocket.send_text(json.dumps(sat_tracker.get_state()))
+
+                elif action == "sat_set_auto_tle":
+                    sat_tracker.auto_tle = bool(msg.get("on", False))
+                    save_connect_settings({"sat_auto_tle": sat_tracker.auto_tle})
+                    sat_tracker._broadcast_status()
+
                 elif action == "poll":
                     # Manual poll requests
                     poll_targets = msg.get("targets", [])
@@ -701,9 +1085,9 @@ async def websocket_endpoint(websocket: WebSocket):
             except Exception as e:
                 await websocket.send_text(json.dumps({"type": "error", "message": str(e)}))
     except WebSocketDisconnect:
-        connected_ws.discard(websocket)
+        _on_ws_closed(websocket)
     except Exception as e:
-        connected_ws.discard(websocket)
+        _on_ws_closed(websocket)
 
 
 if __name__ == "__main__":
@@ -732,13 +1116,25 @@ if __name__ == "__main__":
     host = "127.0.0.1"
     port = 8080
 
-    # Parse --host / --port args (simple, no argparse needed)
+    # Parse --host / --port / --no-browser args (simple, no argparse needed)
     args = sys.argv[1:]
+    no_browser = "--no-browser" in args
     for i, a in enumerate(args):
         if a == "--host" and i + 1 < len(args):
             host = args[i + 1]
         elif a == "--port" and i + 1 < len(args):
             port = int(args[i + 1])
+
+    # If the port is taken (e.g. an older instance is still running),
+    # fall forward to the next free port instead of dying silently.
+    import socket
+    for _ in range(20):
+        with socket.socket() as _s:
+            try:
+                _s.bind((host, port))
+                break
+            except OSError:
+                port += 1
 
     url = f"http://{host}:{port}"
     print(f"\n  IC-9700/IC-705 CI-V 控制器")
@@ -750,6 +1146,7 @@ if __name__ == "__main__":
         time.sleep(0.8)
         webbrowser.open(url)
 
-    threading.Thread(target=_open_browser, daemon=True).start()
+    if not no_browser:
+        threading.Thread(target=_open_browser, daemon=True).start()
 
     uvicorn.run(app, host=host, port=port)

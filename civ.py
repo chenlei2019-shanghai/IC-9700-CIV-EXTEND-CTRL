@@ -423,13 +423,13 @@ class CIVController:
 
     # --- RIT ---
     def set_rit_freq(self, freq_hz: int, direction: int = 0x00):
-        # freq in Hz, max 9999 Hz? Actually BCD 4 digits
+        # Command 21 00: 3 bytes = 4 BCD digits (10Hz/1Hz, 1kHz/100Hz) + sign
         s = f"{abs(freq_hz):04d}"
         bcd = bytearray(3)
         bcd[0] = (int(s[2]) << 4) | int(s[3])  # 10Hz, 1Hz
         bcd[1] = (int(s[0]) << 4) | int(s[1])  # 1kHz, 100Hz
         bcd[2] = direction  # 00=+, 01=-
-        return self.ser.send(0x21, data=bytes(bcd))
+        return self.ser.send(0x21, 0x00, bytes(bcd))
 
     def set_rit(self, on: bool):
         return self.ser.send(0x21, data=bytes([0x01, 0x01 if on else 0x00]))
